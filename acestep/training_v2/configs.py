@@ -59,6 +59,23 @@ class TrainingConfigV2(TrainingConfig):
     - Preprocessing flags
     """
 
+    # --- Data loading (declared here for compatibility with base packages
+    #     that may not include these fields in TrainingConfig) -----------------
+    num_workers: int = 4
+    """Number of DataLoader worker processes."""
+
+    pin_memory: bool = True
+    """Pin memory in DataLoader for faster host-to-device transfer."""
+
+    prefetch_factor: int = 2
+    """Number of batches to prefetch per DataLoader worker."""
+
+    persistent_workers: bool = True
+    """Keep DataLoader workers alive between epochs."""
+
+    pin_memory_device: Optional[str] = None
+    """Device for pinned memory (None = default CUDA device)."""
+
     # --- Optimizer / Scheduler ------------------------------------------------
     optimizer_type: str = "adamw"
     """Optimizer: 'adamw', 'adamw8bit', 'adafactor', 'prodigy'."""
@@ -175,6 +192,11 @@ class TrainingConfigV2(TrainingConfig):
         base = super().to_dict()
         base.update(
             {
+                "num_workers": self.num_workers,
+                "pin_memory": self.pin_memory,
+                "prefetch_factor": self.prefetch_factor,
+                "persistent_workers": self.persistent_workers,
+                "pin_memory_device": self.pin_memory_device,
                 "optimizer_type": self.optimizer_type,
                 "scheduler_type": self.scheduler_type,
                 "gradient_checkpointing": self.gradient_checkpointing,
