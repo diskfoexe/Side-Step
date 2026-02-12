@@ -51,8 +51,8 @@ class LoRAConfigV2(LoRAConfig):
     persistent_workers: bool = True
     """Keep DataLoader workers alive between epochs."""
 
-    pin_memory_device: Optional[str] = None
-    """Device for pinned memory (None = default CUDA device)."""
+    pin_memory_device: str = ""
+    """Device for pinned memory ("" = default CUDA device)."""
 
 
 # ---------------------------------------------------------------------------
@@ -90,8 +90,8 @@ class TrainingConfigV2(TrainingConfig):
     persistent_workers: bool = True
     """Keep DataLoader workers alive between epochs."""
 
-    pin_memory_device: Optional[str] = None
-    """Device for pinned memory (None = default CUDA device)."""
+    pin_memory_device: str = ""
+    """Device for pinned memory ("" = default CUDA device)."""
 
     # --- Optimizer / Scheduler ------------------------------------------------
     optimizer_type: str = "adamw"
