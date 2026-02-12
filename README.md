@@ -66,6 +66,11 @@ Side-Step is designed to be placed **inside** your existing ACE-Step 1.5 folder.
    uv pip intall prodigyopt>=1.1.2
     ```
 ---
+## Side-Note (ba dum tss) / Platform compatibility
+
+While this is coded to be platform agnostic, being built for cloud computing and developed in a Linux system means this is mostly optmized for Linux or UNIX-Like systems. Windows and MacOS should in theory work as well. 
+
+---
 
 ## 🛠️ Usage
 
