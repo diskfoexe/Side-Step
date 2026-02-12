@@ -39,10 +39,16 @@ def build_configs(args: argparse.Namespace) -> Tuple[LoRAConfigV2, TrainingConfi
     data_proportion = 0.5
 
     if model_config_path.is_file():
-        mcfg = _json.loads(model_config_path.read_text())
-        timestep_mu = mcfg.get("timestep_mu", timestep_mu)
-        timestep_sigma = mcfg.get("timestep_sigma", timestep_sigma)
-        data_proportion = mcfg.get("data_proportion", data_proportion)
+        try:
+            mcfg = _json.loads(model_config_path.read_text())
+            timestep_mu = mcfg.get("timestep_mu", timestep_mu)
+            timestep_sigma = mcfg.get("timestep_sigma", timestep_sigma)
+            data_proportion = mcfg.get("data_proportion", data_proportion)
+        except (_json.JSONDecodeError, OSError) as exc:
+            logger.warning(
+                "[Side-Step] Failed to parse %s: %s -- using default timestep parameters",
+                model_config_path, exc,
+            )
 
     # -- GPU info -----------------------------------------------------------
     gpu_info = detect_gpu(
