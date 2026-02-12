@@ -19,21 +19,21 @@ The original ACE-Step trainer has two critical discrepancies from how the base m
 1.  **Continuous Timestep Sampling:** The original trainer uses a discrete 8-step schedule. This is fine for turbo, which the original training script is hardcoded for. Side-Step implements **Logit-Normal continuous sampling**, ensuring the model learns the full range of the denoising process.
 2.  **CFG Dropout (Classifier-Free Guidance):** The original trainer lacks condition dropout. Side-Step implements a **15% null-condition dropout**, teaching the model how to handle both prompted and unprompted generation. Without this, inference quality suffers.
 3.  **Non-Destructive Architecture:** It lives *alongside* your ACE-Step installation. It imports what it needs without touching a single line of the original source code.
-4.  **Built for the cloud** The original Gradio breaks when you try to use it for training. Use this instead :)
+4.  **Built for the cloud:** The original Gradio breaks when you try to use it for training. Use this instead :)
 
 ---
 
 ## ⚠️ Beta Status & Support
-**Current Version:** 0.2.0-beta
+**Current Version:** 0.3.2-beta
 
 | Feature | Status | Note |
 | :--- | :--- | :--- |
 | **Fixed Training** | ✅ Working | Recommended for all users. |
 | **Vanilla Training** | ✅ Working | For reproduction of old results. |
 | **Interactive Wizard** | ✅ Working | `python train.py` with no args. |
+| **CLI Preprocessing** | ⚡ Beta | Two-pass pipeline, low VRAM. See below. |
+| **Gradient Estimation** | ⚡ Beta | Ranks attention modules by sensitivity. |
 | **TUI (Textual UI)** | ❌ **BROKEN** | Do not use `sidestep_tui.py` yet. |
-| **CLI Preprocessing** | ❌ Planned | Use the Gradio UI for preprocessing for now. |
-| **Gradient Estimation** | ❌ Planned | Coming in future update. |
 
 ---
 
@@ -42,11 +42,12 @@ The original ACE-Step trainer has two critical discrepancies from how the base m
 Side-Step is designed to be placed **inside** your existing ACE-Step 1.5 folder.
 
 1. **Requirements:** Ensure you have ACE-Step 1.5 installed and working.
+   > **Tested with:** ACE-Step commit [`46116a6`](https://github.com/ace-step/ACE-Step-1.5/commit/46116a6). Newer versions should work but are not guaranteed.
 2. **Clone into ACE-Step:**
    ```bash
    cd path/to/ACE-Step
    git clone https://github.com/koda-dernet/Side-Step.git temp_side
-   mv temp_side/* .
+   cp -r temp_side/* .
    rm -rf temp_side
    ```
 3. **Install Dependencies:**
@@ -64,7 +65,7 @@ Side-Step is designed to be placed **inside** your existing ACE-Step 1.5 folder.
    ```
 5. **Optional (For bragging rights by using the Prodigy optimizer)**
    ```bash
-   uv pip intall prodigyopt>=1.1.2
+   uv pip install prodigyopt>=1.1.2
     ```
 ---
 ## Side-Note (ba dum tss) / Platform compatibility
@@ -90,6 +91,38 @@ python train.py fixed \
     --dataset-dir ./my_data \
     --output-dir ./output/my_lora \
     --epochs 100
+```
+
+### Option C: Preprocess Audio (Two-Pass, Low VRAM)
+Convert raw audio files into `.pt` tensors without loading all models at once.
+The pipeline runs in two passes: (1) VAE + Text Encoder (~3 GB), then (2) DIT encoder (~6 GB).
+```bash
+python train.py fixed \
+    --checkpoint-dir ./checkpoints \
+    --model-variant turbo \
+    --preprocess \
+    --audio-dir ./my_audio \
+    --tensor-output ./my_tensors
+```
+With a metadata JSON for lyrics/genre/BPM:
+```bash
+python train.py fixed \
+    --checkpoint-dir ./checkpoints \
+    --preprocess \
+    --audio-dir ./my_audio \
+    --dataset-json ./my_dataset.json \
+    --tensor-output ./my_tensors
+```
+
+### Option D: Gradient Estimation
+Find which attention modules learn fastest for your dataset (useful for rank/target selection):
+```bash
+python train.py estimate \
+    --checkpoint-dir ./checkpoints \
+    --model-variant turbo \
+    --dataset-dir ./my_tensors \
+    --estimate-batches 5 \
+    --top-k 16
 ```
 
 ---
@@ -119,8 +152,13 @@ Side-Step is optimized for both heavy Cloud GPUs (H100/A100) and local "underpow
 └── acestep/
     ├── training/            <-- Original ACE-Step code (Untouched)
     └── training_v2/         <-- Side-Step logic
-        ├── trainer_fixed.py <-- The corrected logic
+        ├── trainer_fixed.py <-- The corrected training loop
+        ├── preprocess.py    <-- Two-pass preprocessing pipeline
+        ├── estimate.py      <-- Gradient sensitivity estimation
+        ├── model_loader.py  <-- Per-component model loading
+        ├── _compat.py       <-- ACE-Step version pin & check
         ├── optim.py         <-- 8-bit and adaptive optimizers
+        ├── cli/             <-- CLI argument parsing & dispatch
         └── ui/              <-- Wizard and CLI visual logic
 ```
 
@@ -229,6 +267,8 @@ Available in: vanilla, fixed
 | `--log-heavy-every` | `50` | Log per-layer gradient norms every N optimizer steps. These are more expensive to compute but useful for debugging |
 | `--sample-every-n-epochs` | `0` | Generate an audio sample every N epochs during training. 0 = disabled. (Not yet implemented) |
 
+> **Log file:** All runs automatically append to `sidestep.log` in the working directory. This file captures full tracebacks and debug-level messages that may not appear in the terminal. Useful for diagnosing silent crashes or sharing logs when reporting issues.
+
 ### Preprocessing (optional)
 
 Available in: vanilla, fixed
@@ -244,6 +284,6 @@ Available in: vanilla, fixed
 ---
 
 ## 🤝 Contributing
-Contributions are welcome! Specifically looking for help fixing the **Textual TUI** and completing the **CLI Preprocessing** module.
+Contributions are welcome! Specifically looking for help fixing the **Textual TUI** and testing the new preprocessing + estimation modules.
 
 **License:** Follows the original ACE-Step 1.5 licensing
