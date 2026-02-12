@@ -15,7 +15,7 @@
 
 The original ACE-Step trainer has two critical discrepancies from how the base models were actually trained. Side-Step was built to bridge this gap:
 
-1.  **Continuous Timestep Sampling:** The original trainer uses a discrete 8-step schedule. Real music isn't discrete. Side-Step implements **Logit-Normal continuous sampling**, ensuring the model learns the full range of the denoising process.
+1.  **Continuous Timestep Sampling:** The original trainer uses a discrete 8-step schedule. This is fine for turbo, which the original training script is hardcoded for. Side-Step implements **Logit-Normal continuous sampling**, ensuring the model learns the full range of the denoising process.
 2.  **CFG Dropout (Classifier-Free Guidance):** The original trainer lacks condition dropout. Side-Step implements a **15% null-condition dropout**, teaching the model how to handle both prompted and unprompted generation. Without this, inference quality suffers.
 3.  **Non-Destructive Architecture:** It lives *alongside* your ACE-Step installation. It imports what it needs without touching a single line of the original source code.
 4.  **Built for the cloud** The original Gradio breaks when you try to use it for training. Use this instead :)
