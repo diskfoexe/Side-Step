@@ -36,11 +36,19 @@ from acestep.training_v2.ui.flows_train_steps import (
 # ---- Step list builder ------------------------------------------------------
 
 def _is_turbo_variant(answers: dict) -> bool:
-    """Return ``True`` if the selected model is turbo or turbo-based."""
+    """Return ``True`` if the selected model is turbo or turbo-based.
+
+    Detection is name-based only -- ``num_inference_steps`` is metadata
+    and must not influence the training strategy.
+    """
     base = answers.get("base_model", answers.get("model_variant", "turbo"))
-    if isinstance(base, str) and "turbo" in base.lower():
+    label_lower = base.lower() if isinstance(base, str) else ""
+    if "turbo" in label_lower:
         return True
-    return answers.get("num_inference_steps", 8) == 8
+    if "base" in label_lower or "sft" in label_lower:
+        return False
+    # Unknown model name -- default to turbo (most common variant).
+    return True
 
 
 def _build_steps(answers: dict, config_mode: str, adapter_type: str = "lora") -> list[tuple[str, callable]]:

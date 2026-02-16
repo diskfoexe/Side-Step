@@ -15,6 +15,15 @@ from acestep.training_v2.ui.prompt_helpers import DEFAULT_NUM_WORKERS
 _DEFAULT_PROJECTIONS = "q_proj k_proj v_proj o_proj"
 
 
+def _is_turbo(a: dict) -> bool:
+    """Quick name-based turbo check for default selection."""
+    base = a.get("base_model", a.get("model_variant", "turbo"))
+    label = base.lower() if isinstance(base, str) else ""
+    if "base" in label or "sft" in label:
+        return False
+    return True
+
+
 def _resolve_wizard_projections(a: dict) -> list:
     """Build the ``target_modules`` list from wizard answers.
 
@@ -106,8 +115,8 @@ def build_train_namespace(a: dict, mode: str = "fixed") -> argparse.Namespace:
         log_every=a.get("log_every", 10),
         log_heavy_every=a.get("log_heavy_every", 50),
         sample_every_n_epochs=a.get("sample_every_n_epochs", 0),
-        shift=a.get("shift", 3.0),
-        num_inference_steps=a.get("num_inference_steps", 8),
+        shift=a.get("shift", 3.0 if _is_turbo(a) else 1.0),
+        num_inference_steps=a.get("num_inference_steps", 8 if _is_turbo(a) else 50),
         optimizer_type=a.get("optimizer_type", "adamw"),
         scheduler_type=a.get("scheduler_type", "cosine"),
         gradient_checkpointing=a.get("gradient_checkpointing", True),

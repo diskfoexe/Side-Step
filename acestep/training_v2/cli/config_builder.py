@@ -138,18 +138,36 @@ def build_configs(args: argparse.Namespace) -> Tuple[AdapterConfig, TrainingConf
             logger.info("[Side-Step] num_workers=0 -- forcing prefetch_factor=0")
             prefetch_factor = 0
 
-    # -- Turbo auto-detection -----------------------------------------------
+    # -- Turbo auto-detection (name-based only) -----------------------------
     base_model_label = getattr(args, "base_model", None) or args.model_variant
+    label_lower = base_model_label.lower() if isinstance(base_model_label, str) else ""
+
+    if "turbo" in label_lower:
+        is_turbo = True
+    elif "base" in label_lower or "sft" in label_lower:
+        is_turbo = False
+    else:
+        is_turbo = True
+        logger.info(
+            "[Side-Step] Could not determine variant from '%s'"
+            " -- assuming turbo.  Use --base-model to override.",
+            base_model_label,
+        )
+
+    # Auto-correct shift / inference-steps metadata when the CLI default
+    # (turbo-oriented) doesn't match the detected variant.
     infer_steps = getattr(args, "num_inference_steps", 8)
-    is_turbo = (
-        (isinstance(base_model_label, str) and "turbo" in base_model_label.lower())
-        or infer_steps == 8
-    )
+    shift = getattr(args, "shift", 3.0)
+    if not is_turbo:
+        if infer_steps == 8:
+            infer_steps = 50
+        if shift == 3.0:
+            shift = 1.0
 
     # -- Training config ----------------------------------------------------
     train_cfg = TrainingConfigV2(
         is_turbo=is_turbo,
-        shift=getattr(args, "shift", 3.0),
+        shift=shift,
         num_inference_steps=infer_steps,
         learning_rate=args.learning_rate,
         batch_size=args.batch_size,
