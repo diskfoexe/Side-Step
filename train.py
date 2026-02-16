@@ -6,11 +6,11 @@ Usage:
     python train.py <subcommand> [args]
 
 Subcommands:
-    vanilla          Reproduce existing (bugged) training for backward compatibility
-    fixed            Corrected training: continuous timesteps + CFG dropout
+    fixed            Train a LoRA/LoKR (auto-detects turbo vs base/sft)
     selective        Corrected training with dataset-specific module selection
     estimate         Gradient sensitivity analysis (no training)
     compare-configs  Compare module config JSON files
+    convert          Convert a PEFT LoRA adapter to ComfyUI format
 
 Examples:
     python train.py fixed --checkpoint-dir ./checkpoints --model-variant turbo \\
@@ -58,7 +58,7 @@ def _has_subcommand() -> bool:
     args = sys.argv[1:]
     if "--help" in args or "-h" in args:
         return True  # let argparse handle help
-    known = {"vanilla", "fixed", "selective", "estimate", "compare-configs"}
+    known = {"vanilla", "fixed", "selective", "estimate", "compare-configs", "convert"}
     return bool(known & set(args))
 
 
@@ -86,17 +86,24 @@ def _dispatch(args) -> int:
 
     sub = args.subcommand
 
-    # compare-configs has its own validation
+    # compare-configs and convert have their own validation
     if sub == "compare-configs":
         return _run_compare_configs(args)
+    if sub == "convert":
+        return _run_convert(args)
 
     # All other subcommands need path validation
     if not validate_paths(args):
         return 1
 
     if sub == "vanilla":
-        from acestep.training_v2.cli.train_vanilla import run_vanilla
-        return run_vanilla(args)
+        print(
+            "[INFO] Vanilla mode has been removed. Turbo models are now\n"
+            "       automatically trained with discrete 8-step sampling.\n"
+            "       Use 'fixed' instead -- it auto-detects turbo vs base/sft.",
+            file=sys.stderr,
+        )
+        return 1
 
     elif sub == "fixed":
         from acestep.training_v2.cli.train_fixed import run_fixed
@@ -113,33 +120,6 @@ def _dispatch(args) -> int:
         return 1
 
 
-def _extend_acestep_path() -> None:
-    """Extend ``acestep.__path__`` with the base ACE-Step package location.
-
-    When Side-Step is installed standalone (not as an overlay), vanilla
-    mode still needs ``acestep.training.*`` from the base repo.  By
-    appending the base repo's ``acestep/`` to our package path, those
-    imports become reachable without modifying ``sys.path`` globally.
-
-    This MUST run before any ``acestep.training.*`` import.
-    """
-    import os
-    try:
-        from acestep.training_v2.settings import load_settings
-        data = load_settings()
-        if data and data.get("ace_step_dir"):
-            import acestep
-            ace_acestep = os.path.join(data["ace_step_dir"], "acestep")
-            if os.path.isdir(ace_acestep) and ace_acestep not in acestep.__path__:
-                acestep.__path__.append(ace_acestep)
-                logger.debug(
-                    "[Side-Step] Extended acestep.__path__ with %s",
-                    ace_acestep,
-                )
-    except Exception as exc:
-        logger.debug("[Side-Step] Could not extend acestep path: %s", exc)
-
-
 def main() -> int:
     """Entry point for Side-Step training CLI.
 
@@ -148,9 +128,6 @@ def main() -> int:
     launches the interactive wizard in a session loop so the user can
     preprocess, train, and manage presets without restarting.
     """
-    # -- Extend package path for vanilla mode (must be first) ---------------
-    _extend_acestep_path()
-
     # -- Compatibility check (non-fatal) ------------------------------------
     try:
         from acestep.training_v2._compat import check_compatibility
@@ -323,6 +300,38 @@ def _run_compare_configs(args) -> int:
         return 1
     print("[INFO] compare-configs is not yet implemented.", file=sys.stderr)
     return 1
+
+
+def _run_convert(args) -> int:
+    """Convert a PEFT LoRA adapter to diffusers format for ComfyUI."""
+    from acestep.training_v2.export_utils import convert_peft_to_diffusers
+
+    adapter_dir = args.adapter_dir
+    output = getattr(args, "output", None)
+
+    print("\n" + "=" * 60)
+    print("  Convert PEFT LoRA -> ComfyUI (diffusers format)")
+    print("=" * 60)
+    print(f"  Adapter dir: {adapter_dir}")
+    if output:
+        print(f"  Output:      {output}")
+    else:
+        print(f"  Output:      {adapter_dir}/pytorch_lora_weights.safetensors")
+    print("=" * 60)
+
+    try:
+        out_path = convert_peft_to_diffusers(adapter_dir, output_path=output)
+    except (FileNotFoundError, RuntimeError) as exc:
+        print(f"[FAIL] {exc}", file=sys.stderr)
+        return 1
+    except Exception as exc:
+        print(f"[FAIL] Conversion failed: {exc}", file=sys.stderr)
+        logger.exception("Conversion error")
+        return 1
+
+    print(f"\n[OK] ComfyUI-compatible LoRA saved to: {out_path}")
+    print("[INFO] Load this file in ComfyUI's LoRA loader node.")
+    return 0
 
 
 # ===========================================================================

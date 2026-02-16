@@ -57,18 +57,17 @@ def build_root_parser() -> argparse.ArgumentParser:
 
     subparsers = root.add_subparsers(dest="subcommand", required=True)
 
-    # -- vanilla -------------------------------------------------------------
-    p_vanilla = subparsers.add_parser(
+    # -- vanilla (deprecated -- prints message and exits) ---------------------
+    subparsers.add_parser(
         "vanilla",
-        help="Reproduce existing (bugged) training for backward compatibility",
+        help="(deprecated) Use 'fixed' instead -- turbo auto-detected",
         formatter_class=formatter_class,
     )
-    _add_common_training_args(p_vanilla)
 
     # -- fixed ---------------------------------------------------------------
     p_fixed = subparsers.add_parser(
         "fixed",
-        help="Corrected training: continuous timesteps + CFG dropout",
+        help="Train a LoRA/LoKR (auto-detects turbo vs base/sft)",
         formatter_class=formatter_class,
     )
     _add_common_training_args(p_fixed)
@@ -132,6 +131,25 @@ def build_root_parser() -> argparse.ArgumentParser:
         help="Paths to module config JSON files to compare",
     )
 
+    # -- convert (PEFT -> diffusers for ComfyUI) -----------------------------
+    p_convert = subparsers.add_parser(
+        "convert",
+        help="Convert a PEFT LoRA adapter to diffusers format (for ComfyUI)",
+        formatter_class=formatter_class,
+    )
+    p_convert.add_argument(
+        "--adapter-dir",
+        type=str,
+        required=True,
+        help="Path to PEFT adapter directory containing adapter_model.safetensors",
+    )
+    p_convert.add_argument(
+        "--output",
+        type=str,
+        default=None,
+        help="Output file path (default: pytorch_lora_weights.safetensors in adapter dir)",
+    )
+
     return root
 
 
@@ -189,7 +207,7 @@ def _add_device_args(parser: argparse.ArgumentParser) -> None:
 
 
 def _add_common_training_args(parser: argparse.ArgumentParser) -> None:
-    """Add arguments shared by vanilla / fixed / selective subcommands."""
+    """Add arguments shared by fixed / selective subcommands."""
     _add_model_args(parser)
     _add_device_args(parser)
 
@@ -292,6 +310,10 @@ def _add_fixed_args(parser: argparse.ArgumentParser) -> None:
     """Add arguments specific to the fixed/selective subcommands."""
     g = parser.add_argument_group("Corrected training")
     g.add_argument("--cfg-ratio", type=float, default=0.15, help="CFG dropout probability (default: 0.15)")
+    g.add_argument("--loss-weighting", type=str, default="none", choices=["none", "min_snr"],
+                   help="Loss weighting: 'none' (flat MSE) or 'min_snr' (can yield better results on SFT/base)")
+    g.add_argument("--snr-gamma", type=float, default=5.0,
+                   help="Gamma for min-SNR weighting (default: 5.0)")
 
 
 def _add_selective_args(parser: argparse.ArgumentParser) -> None:
