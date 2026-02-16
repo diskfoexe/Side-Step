@@ -16,6 +16,7 @@ Welcome to the Side-Step documentation vault. This guide covers installation, tr
 - [[VRAM Optimization Guide]] -- VRAM optimizations, GPU profiles
 - [[Estimation Guide]] -- Gradient sensitivity analysis for targeted training
 - [[Shift and Timestep Sampling]] -- How training timesteps work, what shift actually does, Side-Step vs upstream
+- [[CLI Argument Reference]] -- Every `--flag` that `train.py` accepts, by subcommand
 - [[Windows Notes]] -- num_workers, paths, installation, known workarounds
 
 ## Quick Links
