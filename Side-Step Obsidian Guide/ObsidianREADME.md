@@ -1,6 +1,6 @@
 # Side-Step Guide
 
-Welcome to the Side-Step documentation vault. This guide covers installation, training, and model management for Side-Step 0.8.1-beta.
+Welcome to the Side-Step documentation vault. This guide covers installation, training, and model management for Side-Step 0.8.2-beta.
 
 ## Pages
 
@@ -26,4 +26,4 @@ Welcome to the Side-Step documentation vault. This guide covers installation, tr
 
 ## Version
 
-This guide is for **Side-Step 0.8.1-beta**. Side-Step is fully standalone -- no base ACE-Step installation needed.
+This guide is for **Side-Step 0.8.2-beta**. Side-Step is fully standalone -- no base ACE-Step installation needed.

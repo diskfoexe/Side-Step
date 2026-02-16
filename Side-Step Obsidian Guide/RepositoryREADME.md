@@ -38,7 +38,7 @@ If you're training LoRAs for ACE-Step, Side-Step is built to get you from audio 
 ---
 
 ## Beta Status & Support
-**Current Version:** 0.8.1-beta
+**Current Version:** 0.8.2-beta
 
 | Feature | Status | Note |
 | :--- | :--- | :--- |
@@ -57,6 +57,16 @@ If you're training LoRAs for ACE-Step, Side-Step is built to get you from audio 
 > git checkout <hash>
 > ```
 > If you hit issues, please open an issue -- it helps us stabilize faster.
+
+### What's new in 0.8.2-beta
+
+**Per-attention-type projection selection:**
+- **Independent self/cross projections.** When targeting both attention types, the wizard and CLI now let you choose different projections for self-attention and cross-attention independently. For example, train `q_proj v_proj` on self-attention while training all four projections on cross-attention. Previously, the same projection set was applied to both.
+- **Wizard:** When you select "Both self-attention and cross-attention", the wizard now asks "Self-attention projections" and "Cross-attention projections" separately. Applies to both LoRA and LoKR.
+- **CLI:** New `--self-target-modules` and `--cross-target-modules` flags. When used with `--attention-type both`, each set is prefixed and merged independently. When not provided, `--target-modules` applies to both (backward compatible).
+
+**Refactoring:**
+- Shared `_ask_attention_type` and `_ask_projections` helpers eliminate duplicated prompting logic between LoRA and LoKR wizard steps.
 
 ### What's new in 0.8.1-beta
 
@@ -411,7 +421,9 @@ Available in: vanilla, fixed
 | `--alpha` | `128` | LoRA scaling factor. Controls how strongly the adapter affects the model. Usually 2x the rank. Recommended: 128 |
 | `--dropout` | `0.1` | Dropout probability on LoRA layers. Helps prevent overfitting. Range: 0.0 to 0.5 |
 | `--attention-type` | `both` | Which attention layers to target. Options: `both` (self + cross attention, 192 modules), `self` (self-attention only, audio patterns, 96 modules), `cross` (cross-attention only, text conditioning, 96 modules) |
-| `--target-modules` | `q_proj k_proj v_proj o_proj` | Which projection layers get adapters. Space-separated list. Combined with `--attention-type` to determine final target modules |
+| `--target-modules` | `q_proj k_proj v_proj o_proj` | Which projection layers get adapters. Space-separated list. Combined with `--attention-type` to determine final target modules. Used as fallback when per-type flags are not set |
+| `--self-target-modules` | *(none)* | Projections for self-attention only. Space-separated. Used with `--attention-type both` to configure self-attention independently |
+| `--cross-target-modules` | *(none)* | Projections for cross-attention only. Space-separated. Used with `--attention-type both` to configure cross-attention independently |
 | `--bias` | `none` | Whether to train bias parameters. Options: `none` (no bias training), `all` (train all biases), `lora_only` (only biases in LoRA layers) |
 
 ### LoKR Settings (used when --adapter-type=lokr) -- Experimental
