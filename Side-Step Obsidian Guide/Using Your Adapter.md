@@ -78,6 +78,30 @@ Every checkpoint directory (`checkpoints/epoch_N/`) also contains inference-read
 
 ---
 
+## Loading LoRA in ComfyUI
+
+PEFT saves adapter keys with a `base_model.model.` prefix that ComfyUI doesn't recognize. Side-Step includes a converter:
+
+### From the wizard
+
+Select **"Convert LoRA for ComfyUI"** from the main menu. Enter the path to your adapter directory (e.g., `./output/my_lora/final`). Side-Step writes `pytorch_lora_weights.safetensors` into the same directory.
+
+### From the CLI
+
+```bash
+uv run train.py convert --adapter-dir ./output/my_lora/final
+```
+
+Optionally specify a custom output path:
+
+```bash
+uv run train.py convert --adapter-dir ./output/my_lora/final --output ./comfyui_lora.safetensors
+```
+
+The converted file strips the PEFT key prefix and adapter-name segments so ComfyUI loads the weights correctly.
+
+---
+
 ## LoKR Limitation
 
 ACE-Step's Gradio UI currently **only supports PEFT LoRA adapters**. The loading code checks for `adapter_config.json`, which LoKR does not produce (LoKR uses LyCORIS format with `lokr_weights.safetensors`).

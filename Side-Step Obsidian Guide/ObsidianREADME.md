@@ -1,14 +1,15 @@
 # Side-Step Guide
 
-Welcome to the Side-Step documentation vault. This guide covers installation, training, and model management for Side-Step 0.8.0-beta.
+Welcome to the Side-Step documentation vault. This guide covers installation, training, and model management for Side-Step 0.8.1-beta.
 
 ## Pages
 
 - [[Getting Started]] -- Installation, first-run setup, prerequisites
 - [[End-to-End Tutorial]] -- Raw audio to generated music walkthrough
 - [[Dataset Preparation]] -- JSON schema, audio formats, metadata fields
-- [[Training Guide]] -- LoRA vs LoKR, corrected vs vanilla, wizard walkthrough, CLI examples
-- [[Using Your Adapter]] -- Output layout, loading in Gradio, LoKR limitations
+- [[Training Guide]] -- LoRA vs LoKR, variant-aware training, wizard walkthrough, CLI examples
+- [[Loss Weighting and CFG Dropout]] -- Loss weighting strategies, CFG dropout, timestep distribution tuning
+- [[Using Your Adapter]] -- Output layout, loading in Gradio, ComfyUI export, LoKR limitations
 - [[Model Management]] -- Checkpoint structure, fine-tunes, the "never rename" rule
 - [[Preset Management]] -- Built-in presets, save/load/import/export
 - [[The Settings Wizard]] -- All wizard settings reference
@@ -25,4 +26,4 @@ Welcome to the Side-Step documentation vault. This guide covers installation, tr
 
 ## Version
 
-This guide is for **Side-Step 0.8.0-beta**. The corrected (fixed) training loop is standalone. Vanilla mode requires a base ACE-Step installation alongside.
+This guide is for **Side-Step 0.8.1-beta**. Side-Step is fully standalone -- no base ACE-Step installation needed.

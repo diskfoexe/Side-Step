@@ -1,7 +1,7 @@
 
 This page explains how timestep sampling works during training, what the `shift` parameter actually does, and why Side-Step's approach differs from the upstream community trainer.
 
-> **TL;DR:** `shift` is an **inference-only** parameter. It does not affect the training loop. Side-Step's corrected training uses the same continuous timestep sampling as the model's own `forward()` method. The `--shift` and `--num-inference-steps` settings are stored as metadata so you know what values to use when generating audio with your trained adapter.
+> **TL;DR:** `shift` is an **inference-only** parameter. It does not affect the training loop. Side-Step auto-detects your model variant and selects the correct timestep sampling strategy: discrete 8-step for turbo, continuous logit-normal for base/sft. The `--shift` and `--num-inference-steps` settings are stored as metadata so you know what values to use when generating audio with your trained adapter.
 
 ---
 
@@ -30,7 +30,21 @@ The turbo model also has pre-computed discrete timestep tables for each shift va
 
 ## What controls training timesteps
 
-During **training**, timesteps are sampled from a continuous distribution. All three ACE-Step model variants (turbo, base, sft) define the same `sample_t_r()` function in their model code:
+Side-Step **auto-detects** your model variant and selects the correct timestep sampling strategy:
+
+### Turbo models: discrete 8-step sampling
+
+Turbo models use a discrete timestep schedule matching the inference pipeline. Each training step uniformly picks one of these 8 values:
+
+```python
+TURBO_SHIFT3_TIMESTEPS = [1.0, 0.955, 0.9, 0.833, 0.75, 0.643, 0.5, 0.3]
+```
+
+This trains the adapter at exactly the timestep values it will see during 8-step inference. CFG dropout is not applied (turbo inference doesn't use classifier-free guidance).
+
+### Base/SFT models: continuous logit-normal sampling
+
+Base and sft models define the same `sample_t_r()` function in their model code:
 
 ```python
 def sample_t_r(batch_size, device, dtype, data_proportion, timestep_mu, timestep_sigma, use_meanflow):
@@ -49,46 +63,42 @@ This is **logit-normal sampling**: draw from a normal distribution, then pass th
 | `timestep_mu` | `-0.4` | Shifts the distribution center. Negative values bias toward lower timesteps |
 | `timestep_sigma` | `1.0` | Controls spread. Larger values give a wider range of timesteps |
 
-Side-Step reads these automatically from each model's `config.json` at startup. You never need to set them manually.
+Side-Step reads these automatically from each model's `config.json` at startup. You never need to set them manually. CFG dropout (15% null-condition replacement) is applied to teach the model to handle both prompted and unprompted generation.
 
 ---
 
-## Side-Step vs upstream (vanilla) trainer
+## Side-Step vs upstream trainer
 
-### Side-Step corrected training (fixed mode)
+### Side-Step (variant-aware)
 
-Side-Step's `sample_timesteps()` function (in `timestep_sampling.py`) is a **line-for-line reimplementation** of the model's own `sample_t_r()`:
+Side-Step auto-detects the model variant and uses the correct strategy:
+
+- **Turbo:** `sample_discrete_timesteps()` -- uniform over the 8-step inference schedule
+- **Base/SFT:** `sample_timesteps()` -- continuous logit-normal, a **line-for-line reimplementation** of the model's own `sample_t_r()`:
 
 ```python
-# Side-Step (timestep_sampling.py)
+# Side-Step (timestep_sampling.py) -- used for base/sft
 t = torch.sigmoid(
     torch.randn((batch_size,), device=device, dtype=dtype) * timestep_sigma + timestep_mu
 )
 ```
 
-This matches the model's native training `forward()` method exactly, for all three variants. The parameters come from each model's `config.json`.
-
-**Result:** Side-Step can correctly train adapters for turbo, base, and sft models because it uses the same timestep distribution the models were originally trained with.
+**Result:** Side-Step correctly trains adapters for all three variants because it matches each model's actual training distribution.
 
 ### Upstream community trainer
 
-The original ACE-Step community trainer (`acestep/training/trainer.py`) uses a **different approach** -- discrete timesteps hardcoded from `shift=3.0`:
+The original ACE-Step community trainer (`acestep/training/trainer.py`) uses the same discrete 8-step schedule for **all** model variants:
 
 ```python
 # Upstream trainer (trainer.py)
 TURBO_SHIFT3_TIMESTEPS = [1.0, 0.955, 0.9, 0.833, 0.75, 0.643, 0.5, 0.3]
-
-def sample_discrete_timestep(bsz, timesteps_tensor):
-    indices = torch.randint(0, timesteps_tensor.shape[0], (bsz,))
-    t = timesteps_tensor[indices]
-    return t, t
 ```
 
-Each training step uniformly picks one of those 8 discrete values. This approach:
+This approach:
 
-1. **Does not match how the models were actually trained.** The models use continuous logit-normal sampling, not discrete uniform sampling.
-2. **Is hardcoded for turbo.** Those specific timestep values come from `shift=3.0` with 8 steps. For base or sft models (which use `shift=1.0` and more steps), this schedule is incorrect.
-3. **Samples from a fundamentally different distribution.** Uniform over 8 points vs. continuous logit-normal over the full (0, 1) range.
+1. **Is correct for turbo.** The discrete schedule matches turbo's 8-step inference pipeline.
+2. **Is wrong for base and sft.** Those models were trained with continuous logit-normal sampling, not discrete uniform sampling. The upstream trainer applies turbo's schedule regardless.
+3. **Lacks CFG dropout.** Base/sft models need null-condition dropout for classifier-free guidance to work at inference. The upstream trainer doesn't implement this.
 
 ---
 
@@ -125,7 +135,10 @@ It's metadata. When you finish training and want to generate audio with your LoR
 Technically yes, but the quality will differ from what the model expects. Also, i don't think it is fully supported by upstream. Use the shift value that matches the model variant you trained on.
 
 **Q: Why does the upstream trainer use discrete timesteps?**
-The upstream community trainer was written specifically for the turbo model. It takes the 8 discrete timestep values from the turbo inference schedule and samples uniformly from them. This is a reasonable approximation for turbo but does not match the model's actual training distribution, and it does not work for base or sft models.
+The upstream community trainer was written specifically for the turbo model. It takes the 8 discrete timestep values from the turbo inference schedule and samples uniformly from them. This is actually correct for turbo (and Side-Step now uses the same approach for turbo), but it does not work for base or sft models which need continuous sampling.
+
+**Q: Side-Step used to use continuous sampling for turbo too. What changed?**
+In 0.8.1, Side-Step switched turbo to discrete 8-step sampling to match the inference pipeline more closely. Training the adapter at exactly the timestep values it will see during inference is more efficient for turbo, where only 8 denoising steps are used. Base and sft still use continuous sampling because they use many more inference steps across the full timestep range.
 
 ---
 
@@ -135,7 +148,8 @@ These are the relevant source locations for anyone who wants to verify:
 
 - **Model's native training sampling:** `sample_t_r()` in `modeling_acestep_v15_turbo.py` (lines 169-194), `modeling_acestep_v15_base.py` (same), `sft/modeling_acestep_v15_base.py` (same)
 - **Model's inference shift warp:** `generate_audio()` in each model file, applies `t = shift * t / (1 + (shift - 1) * t)`
-- **Side-Step's corrected sampling:** `sample_timesteps()` in `acestep/training_v2/timestep_sampling.py`
+- **Side-Step's continuous sampling (base/sft):** `sample_timesteps()` in `acestep/training_v2/timestep_sampling.py`
+- **Side-Step's discrete sampling (turbo):** `sample_discrete_timesteps()` in `acestep/training_v2/timestep_sampling.py`
 - **Upstream discrete sampling:** `sample_discrete_timestep()` in `acestep/training/trainer.py` (lines 302-323)
 
 ---

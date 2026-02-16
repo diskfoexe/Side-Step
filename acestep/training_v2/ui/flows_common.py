@@ -12,12 +12,13 @@ import argparse
 from acestep.training_v2.ui.prompt_helpers import DEFAULT_NUM_WORKERS
 
 
-def build_train_namespace(a: dict, mode: str) -> argparse.Namespace:
+def build_train_namespace(a: dict, mode: str = "fixed") -> argparse.Namespace:
     """Convert a wizard answers dict into an argparse.Namespace for dispatch.
 
     Args:
         a: Wizard answers dict populated by step functions.
-        mode: Training subcommand ('fixed' or 'vanilla').
+        mode: Training subcommand (always ``'fixed'``; turbo vs base/sft
+            is auto-detected from the model variant).
 
     Returns:
         A fully populated ``argparse.Namespace``.
@@ -25,7 +26,7 @@ def build_train_namespace(a: dict, mode: str) -> argparse.Namespace:
     target_modules = a.get("target_modules_str", "q_proj k_proj v_proj o_proj").split()
     nw = a.get("num_workers", DEFAULT_NUM_WORKERS)
     return argparse.Namespace(
-        subcommand=mode,
+        subcommand="fixed",
         plain=False,
         yes=False,
         _from_wizard=True,
@@ -84,6 +85,8 @@ def build_train_namespace(a: dict, mode: str) -> argparse.Namespace:
         tensor_output=None,
         max_duration=240.0,
         cfg_ratio=a.get("cfg_ratio", 0.15),
+        loss_weighting=a.get("loss_weighting", "none"),
+        snr_gamma=a.get("snr_gamma", 5.0),
         estimate_batches=None,
         top_k=16,
         granularity="module",

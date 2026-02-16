@@ -394,6 +394,8 @@ class FixedLoRATrainer:
 
                     if global_step % cfg.log_heavy_every == 0:
                         tb.log_per_layer_grad_norms(self.module.model, global_step)
+                        if hasattr(self.module, '_last_timesteps') and self.module._last_timesteps is not None:
+                            tb.log_timestep_histogram(self.module._last_timesteps, global_step)
 
                     optimizer.zero_grad(set_to_none=True)
                     epoch_loss += avg_loss

@@ -118,7 +118,7 @@ PRESET_FIELDS = frozenset([
     "learning_rate", "batch_size", "gradient_accumulation", "epochs",
     "warmup_steps", "weight_decay", "max_grad_norm", "seed",
     "shift", "num_inference_steps",
-    "optimizer_type", "scheduler_type", "cfg_ratio",
+    "optimizer_type", "scheduler_type", "cfg_ratio", "loss_weighting", "snr_gamma",
     "save_every", "log_every", "log_heavy_every",
     "gradient_checkpointing", "offload_encoder",
     "sample_every_n_epochs",

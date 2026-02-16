@@ -146,6 +146,21 @@ class TrainingLogger:
                     del cpu_data
 
     # ------------------------------------------------------------------
+    # Timestep distribution
+    # ------------------------------------------------------------------
+
+    def log_timestep_histogram(
+        self, timesteps: torch.Tensor, step: int,
+    ) -> None:
+        """Log sampled timestep distribution as a histogram."""
+        if self._writer is not None:
+            self._writer.add_histogram(
+                "train/timestep_distribution",
+                timesteps.cpu().float(),
+                global_step=step,
+            )
+
+    # ------------------------------------------------------------------
     # Lifecycle
     # ------------------------------------------------------------------
 

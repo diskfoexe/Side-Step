@@ -133,10 +133,19 @@ def build_configs(args: argparse.Namespace) -> Tuple[AdapterConfig, TrainingConf
             logger.info("[Side-Step] num_workers=0 -- forcing prefetch_factor=0")
             prefetch_factor = 0
 
+    # -- Turbo auto-detection -----------------------------------------------
+    base_model_label = getattr(args, "base_model", None) or args.model_variant
+    infer_steps = getattr(args, "num_inference_steps", 8)
+    is_turbo = (
+        (isinstance(base_model_label, str) and "turbo" in base_model_label.lower())
+        or infer_steps == 8
+    )
+
     # -- Training config ----------------------------------------------------
     train_cfg = TrainingConfigV2(
+        is_turbo=is_turbo,
         shift=getattr(args, "shift", 3.0),
-        num_inference_steps=getattr(args, "num_inference_steps", 8),
+        num_inference_steps=infer_steps,
         learning_rate=args.learning_rate,
         batch_size=args.batch_size,
         gradient_accumulation_steps=args.gradient_accumulation,
@@ -158,6 +167,8 @@ def build_configs(args: argparse.Namespace) -> Tuple[AdapterConfig, TrainingConf
         gradient_checkpointing=getattr(args, "gradient_checkpointing", True),
         offload_encoder=getattr(args, "offload_encoder", False),
         cfg_ratio=getattr(args, "cfg_ratio", 0.15),
+        loss_weighting=getattr(args, "loss_weighting", "none"),
+        snr_gamma=getattr(args, "snr_gamma", 5.0),
         timestep_mu=timestep_mu,
         timestep_sigma=timestep_sigma,
         data_proportion=data_proportion,

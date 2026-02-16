@@ -198,9 +198,15 @@ def step_training(a: dict) -> None:
 
 
 def step_cfg(a: dict) -> None:
-    """CFG dropout (fixed mode only)."""
+    """CFG dropout and loss weighting (fixed mode only)."""
     section("Corrected Training Settings (press Enter for defaults)")
     a["cfg_ratio"] = ask("CFG dropout ratio", default=a.get("cfg_ratio", 0.15), type_fn=float, allow_back=True)
+    a["loss_weighting"] = ask(
+        "Loss weighting (none / min_snr -- min_snr can yield better results on SFT and base models)",
+        default=a.get("loss_weighting", "none"), allow_back=True,
+    )
+    if a["loss_weighting"] == "min_snr":
+        a["snr_gamma"] = ask("SNR gamma", default=a.get("snr_gamma", 5.0), type_fn=float, allow_back=True)
 
 
 def step_logging(a: dict) -> None:

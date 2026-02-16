@@ -1,9 +1,8 @@
 """
 First-run setup wizard and settings editor for Side-Step.
 
-Runs automatically on the first launch.  Collects environment paths
-(checkpoint directory, ACE-Step install location) and vanilla-mode intent.
-Re-accessible from the main menu under "Settings".
+Runs automatically on the first launch.  Collects the checkpoint
+directory path.  Re-accessible from the main menu under "Settings".
 """
 
 from __future__ import annotations
@@ -37,27 +36,12 @@ def _print(msg: str) -> None:
         print(re.sub(r"\[/?[^\]]*\]", "", msg))
 
 
-def _smart_checkpoint_default(ace_step_dir: str | None) -> str:
+def _smart_checkpoint_default() -> str:
     """Pick a sensible default checkpoint path based on context."""
-    if ace_step_dir:
-        candidate = Path(ace_step_dir) / "checkpoints"
-        if candidate.is_dir():
-            return str(candidate)
-    # Fall back to common relative paths
     for rel in ("./checkpoints", "../ACE-Step-1.5/checkpoints"):
         if Path(rel).is_dir():
             return native_path(rel)
     return native_path("./checkpoints")
-
-
-def _validate_ace_step_dir(path_str: str) -> bool:
-    """Check that the given path looks like an ACE-Step installation."""
-    p = Path(path_str)
-    if not p.is_dir():
-        return False
-    # Must have the acestep package with training/trainer.py for vanilla
-    trainer = p / "acestep" / "training" / "trainer.py"
-    return trainer.is_file()
 
 
 # ---------------------------------------------------------------------------
@@ -83,44 +67,12 @@ def run_first_setup() -> dict:
     _print("  [yellow]3.[/] [bold]Never rename checkpoint folders.[/] The model loader uses")
     _print("     folder names and config.json files to identify models.\n")
 
-    # -- Vanilla intent -----------------------------------------------------
-    section("Vanilla Training Mode")
-    _print("  Side-Step's [bold green]corrected (fixed)[/] training is fully standalone.")
-    _print("  [bold yellow]Vanilla[/] mode reproduces the original ACE-Step training")
-    _print("  behavior and requires a base ACE-Step installation.\n")
-
-    data["vanilla_enabled"] = ask_bool(
-        "Do you plan to use Vanilla training mode?",
-        default=False,
-    )
-
-    ace_step_dir: str | None = None
-    if data["vanilla_enabled"]:
-        _print("\n  Point me to your ACE-Step 1.5 installation directory.")
-        _print("  [dim](The folder that contains the acestep/ package.)[/]\n")
-        while True:
-            ace_step_dir = ask_path(
-                "ACE-Step install directory",
-                default=native_path("../ACE-Step-1.5"),
-            )
-            if _validate_ace_step_dir(ace_step_dir):
-                _print(f"  [green]Validated: {_esc(ace_step_dir)}[/]")
-                break
-            _print("  [red]That directory does not look like an ACE-Step install.[/]")
-            _print("  [dim]Expected to find: acestep/training/trainer.py[/]")
-            if not ask_bool("Try a different path?", default=True):
-                _print("  [yellow]Vanilla mode will not be available until you configure this.[/]")
-                data["vanilla_enabled"] = False
-                break
-
-    data["ace_step_dir"] = ace_step_dir
-
     # -- Checkpoint directory -----------------------------------------------
     section("Model Checkpoints")
     _print("  Where are your model checkpoint folders?")
     _print("  [dim](Each model variant lives in its own subfolder, e.g.\n   checkpoints/acestep-v15-turbo/, checkpoints/acestep-v15-base/, etc.)[/]\n")
 
-    default_ckpt = _smart_checkpoint_default(ace_step_dir)
+    default_ckpt = _smart_checkpoint_default()
     while True:
         ckpt_dir = ask_path("Checkpoint directory", default=default_ckpt)
         ckpt_path = Path(ckpt_dir)
@@ -152,13 +104,11 @@ def run_first_setup() -> dict:
     # -- Summary ------------------------------------------------------------
     section("Setup Complete")
     _print(f"  Checkpoint dir : [bold]{_esc(data['checkpoint_dir'])}[/]")
-    if data["vanilla_enabled"] and data["ace_step_dir"]:
-        _print(f"  ACE-Step dir   : [bold]{_esc(data['ace_step_dir'])}[/]")
-        _print("  Vanilla mode   : [bold green]enabled[/]")
-    else:
-        _print("  Vanilla mode   : [bold yellow]disabled[/] (corrected mode is standalone)")
     _print("")
-    _print("  [dim]You can change these any time from the main menu → Settings.[/]\n")
+    _print("  [dim]Training mode is auto-detected from the model variant[/]")
+    _print("  [dim](turbo = discrete 8-step, base/sft = continuous + CFG).[/]")
+    _print("")
+    _print("  [dim]You can change these any time from the main menu > Settings.[/]\n")
 
     return data
 

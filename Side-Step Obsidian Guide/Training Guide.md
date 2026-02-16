@@ -1,21 +1,21 @@
 ## Overview
 
-Side-Step supports two adapter types and two training modes:
+Side-Step supports two adapter types:
 
-|                    | Corrected (Fixed) | Vanilla (Original)          |
-| ------------------ | ----------------- | --------------------------- |
-| **LoRA** (PEFT)    | Recommended       | For reproducing old results |
-| **LoKR** (LyCORIS) | Experimental      | Experimental                |
+| Adapter | Status | Library |
+| --- | --- | --- |
+| **LoRA** (PEFT) | Recommended | PEFT |
+| **LoKR** (LyCORIS) | Experimental | LyCORIS |
 
-**Corrected mode** (the default and recommended path) uses:
-- Continuous logit-normal timestep sampling (matches how base/SFT were trained)
-- 15% CFG dropout (teaches the model to handle prompted and unprompted generation)
-- Standalone -- no base ACE-Step installation needed
+Side-Step **auto-detects** the model variant and selects the correct training strategy:
 
-**Vanilla mode** reproduces the original ACE-Step training behavior:
-- Discrete 8-step timestep schedule
-- No CFG dropout
-- Requires base ACE-Step installed alongside
+| Model | Timestep Sampling | CFG Dropout | Notes |
+| --- | --- | --- | --- |
+| **Turbo** | Discrete 8-step | Disabled | Matches turbo's inference schedule |
+| **Base** | Continuous logit-normal | 15% | Matches how base was actually trained |
+| **SFT** | Continuous logit-normal | 15% | Matches how sft was actually trained |
+
+You don't need to choose a training mode -- just pick your model and Side-Step does the rest. The old "vanilla" mode is deprecated; turbo-correct behavior is now handled automatically inside `fixed` mode.
 
 ---
 
@@ -29,8 +29,8 @@ uv run python train.py
 
 The wizard walks you through:
 1. Selecting adapter type (LoRA or LoKR)
-2. Choosing training mode (Corrected or Vanilla)
-3. Picking your model (interactive selector with fuzzy search)
+2. Picking your model (interactive selector with fuzzy search)
+3. Seeing the auto-detected training strategy (turbo vs base/sft)
 4. Setting hyperparameters (Basic mode uses good defaults, Advanced exposes everything)
 5. Confirming and starting
 
@@ -39,7 +39,8 @@ The wizard walks you through:
 - **Go-back navigation**: Type `b` at any prompt to return to the previous question
 - **Presets**: Save and load named configurations (main menu > Manage presets)
 - **Flow chaining**: After preprocessing, the wizard offers to start training immediately
-- **Settings**: Configure checkpoint paths and vanilla mode (main menu > Settings)
+- **ComfyUI export**: Convert PEFT LoRAs to diffusers format (main menu > Convert LoRA for ComfyUI)
+- **Settings**: Configure checkpoint paths (main menu > Settings)
 - **Session loop**: The wizard stays open after each action -- no need to restart
 
 ---
@@ -195,6 +196,7 @@ Key metrics to watch:
 - **loss/train** -- Should decrease over time. Spikes are normal but persistent increase means overfitting
 - **lr** -- Learning rate schedule. Should warm up then follow your chosen scheduler
 - **grad_norm/** -- Per-layer gradient norms (logged every `--log-heavy-every` steps)
+- **train/timestep_distribution** -- Histogram of sampled timesteps (under the Histograms tab). Verify your training is sampling the right noise levels
 
 ### Log File
 
@@ -243,6 +245,7 @@ This ranks modules by gradient sensitivity. Useful for:
 
 - [[Getting Started]] -- Installation and setup
 - [[Model Management]] -- Checkpoint structure and fine-tune support
+- [[Loss Weighting and CFG Dropout]] -- Loss weighting strategies, CFG dropout tuning, timestep distribution
 - [[Shift and Timestep Sampling]] -- How training timesteps work, what shift actually does, Side-Step vs upstream
 - [[Estimation Guide]] -- How to use and read gradient sensitivity analysis
 - [[VRAM Optimization Guide]] -- VRAM profiles, GPU tiers, and complete wizard settings reference

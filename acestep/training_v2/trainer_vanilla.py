@@ -1,10 +1,12 @@
 """
-VanillaTrainer -- Thin adapter wrapping the original LoRATrainer for TUI use.
+VanillaTrainer -- **DEPRECATED**.
 
-The original ``acestep/training/trainer.py`` ``LoRATrainer`` requires a
-``dit_handler`` shim.  This module provides a ``VanillaTrainer`` class with
-the same interface as ``FixedTrainer`` so both can be used interchangeably
-from the TUI training monitor.
+This module is no longer used.  Turbo models are now automatically
+trained with discrete 8-step sampling inside ``FixedLoRAModule``, which
+makes the external ACE-Step dependency and this wrapper unnecessary.
+
+This file is kept temporarily for backward compatibility but will be
+removed in a future release.
 """
 
 from __future__ import annotations

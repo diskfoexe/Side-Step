@@ -453,17 +453,11 @@ name = "flash-attn"
 version = "2.8.2"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
-    "python_full_version >= '3.12' and sys_platform == 'linux'",
-    "python_full_version < '3.12' and sys_platform == 'linux'",
-    "python_full_version >= '3.12' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version < '3.12' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "(python_full_version >= '3.12' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version >= '3.12' and sys_platform != 'darwin' and sys_platform != 'linux' and sys_platform != 'win32')",
     "(python_full_version < '3.12' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version < '3.12' and sys_platform != 'darwin' and sys_platform != 'linux' and sys_platform != 'win32')",
 ]
 dependencies = [
-    { name = "einops", marker = "sys_platform != 'win32'" },
-    { name = "torch", version = "2.10.0", source = { registry = "https://pypi.org/simple" }, marker = "sys_platform != 'linux' and sys_platform != 'win32'" },
-    { name = "torch", version = "2.10.0+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "sys_platform == 'linux'" },
+    { name = "einops", marker = "(python_full_version < '3.12' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version < '3.12' and sys_platform != 'darwin' and sys_platform != 'linux' and sys_platform != 'win32')" },
+    { name = "torch", version = "2.10.0", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version < '3.12' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version < '3.12' and sys_platform != 'darwin' and sys_platform != 'linux' and sys_platform != 'win32')" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/63/91/91bcbd7424877fa8da4e7cc04b8a777247a33037b9c1fd976a5ad426c047/flash_attn-2.8.2.tar.gz", hash = "sha256:740a5370f406cbe16155cc6d078ec543a97a137501f32cba89198295e6b80e54", size = 8167111, upload-time = "2025-07-24T16:06:45.953Z" }
 
@@ -475,11 +469,32 @@ resolution-markers = [
     "python_full_version < '3.12' and sys_platform == 'win32'",
 ]
 dependencies = [
-    { name = "einops", marker = "sys_platform == 'win32'" },
-    { name = "torch", version = "2.7.1+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "sys_platform == 'win32'" },
+    { name = "einops", marker = "python_full_version < '3.12' and sys_platform == 'win32'" },
+    { name = "torch", version = "2.7.1+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "python_full_version < '3.12' and sys_platform == 'win32'" },
 ]
 wheels = [
     { url = "https://github.com/sdbds/flash-attention-for-windows/releases/download/2.8.2/flash_attn-2.8.2+cu128torch2.7.1cxx11abiFALSEfullbackward-cp311-cp311-win_amd64.whl", hash = "sha256:ec2ab64109931b65fef457b5af592929d410621f9dab0ff8cde98cde4551016d" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "einops" },
+    { name = "torch" },
+]
+
+[[package]]
+name = "flash-attn"
+version = "2.8.3+cu128torch2.10"
+source = { url = "https://github.com/mjun0812/flash-attention-prebuild-wheels/releases/download/v0.7.12/flash_attn-2.8.3+cu128torch2.10-cp311-cp311-linux_x86_64.whl" }
+resolution-markers = [
+    "python_full_version < '3.12' and sys_platform == 'linux'",
+]
+dependencies = [
+    { name = "einops", marker = "python_full_version < '3.12' and sys_platform == 'linux'" },
+    { name = "torch", version = "2.10.0+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "python_full_version < '3.12' and sys_platform == 'linux'" },
+]
+wheels = [
+    { url = "https://github.com/mjun0812/flash-attention-prebuild-wheels/releases/download/v0.7.12/flash_attn-2.8.3+cu128torch2.10-cp311-cp311-linux_x86_64.whl", hash = "sha256:fa848ca9b2039a70810547e9fd9a007cf5d14f0c6e09acad51afa0b5c3b50196" },
 ]
 
 [package.metadata]
@@ -1884,15 +1899,21 @@ wheels = [
 
 [[package]]
 name = "side-step"
-version = "0.7.0b0"
+version = "0.8.0b0"
 source = { editable = "." }
 dependencies = [
     { name = "accelerate" },
+    { name = "bitsandbytes" },
     { name = "diffusers" },
     { name = "einops" },
+    { name = "flash-attn", version = "2.8.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12' and sys_platform != 'darwin' and sys_platform != 'linux' and sys_platform != 'win32'" },
+    { name = "flash-attn", version = "2.8.2", source = { url = "https://github.com/sdbds/flash-attention-for-windows/releases/download/2.8.2/flash_attn-2.8.2+cu128torch2.7.1cxx11abiFALSEfullbackward-cp311-cp311-win_amd64.whl" }, marker = "python_full_version < '3.12' and sys_platform == 'win32'" },
+    { name = "flash-attn", version = "2.8.3+cu128torch2.10", source = { url = "https://github.com/mjun0812/flash-attention-prebuild-wheels/releases/download/v0.7.12/flash_attn-2.8.3+cu128torch2.10-cp311-cp311-linux_x86_64.whl" }, marker = "python_full_version < '3.12' and sys_platform == 'linux'" },
     { name = "lightning" },
     { name = "loguru" },
+    { name = "lycoris-lora" },
     { name = "peft" },
+    { name = "prodigyopt" },
     { name = "rich" },
     { name = "safetensors" },
     { name = "soundfile" },
@@ -1910,25 +1931,6 @@ dependencies = [
 ]
 
 [package.optional-dependencies]
-8bit = [
-    { name = "bitsandbytes" },
-]
-all = [
-    { name = "bitsandbytes" },
-    { name = "lycoris-lora" },
-    { name = "prodigyopt" },
-    { name = "textual" },
-]
-flash = [
-    { name = "flash-attn", version = "2.8.2", source = { registry = "https://pypi.org/simple" }, marker = "sys_platform != 'win32'" },
-    { name = "flash-attn", version = "2.8.2", source = { url = "https://github.com/sdbds/flash-attention-for-windows/releases/download/2.8.2/flash_attn-2.8.2+cu128torch2.7.1cxx11abiFALSEfullbackward-cp311-cp311-win_amd64.whl" }, marker = "python_full_version < '3.12' and platform_machine == 'AMD64' and sys_platform == 'win32'" },
-]
-lokr = [
-    { name = "lycoris-lora" },
-]
-prodigy = [
-    { name = "prodigyopt" },
-]
 tui = [
     { name = "textual" },
 ]
@@ -1936,24 +1938,21 @@ tui = [
 [package.metadata]
 requires-dist = [
     { name = "accelerate", specifier = ">=1.12.0" },
-    { name = "bitsandbytes", marker = "extra == '8bit'", specifier = ">=0.45.0" },
-    { name = "bitsandbytes", marker = "extra == 'all'", specifier = ">=0.45.0" },
+    { name = "bitsandbytes", specifier = ">=0.45.0" },
     { name = "diffusers" },
     { name = "einops", specifier = ">=0.8.1" },
-    { name = "flash-attn", marker = "python_full_version == '3.11.*' and platform_machine == 'AMD64' and sys_platform == 'win32' and extra == 'flash'", url = "https://github.com/sdbds/flash-attention-for-windows/releases/download/2.8.2/flash_attn-2.8.2+cu128torch2.7.1cxx11abiFALSEfullbackward-cp311-cp311-win_amd64.whl" },
-    { name = "flash-attn", marker = "sys_platform != 'win32' and extra == 'flash'" },
+    { name = "flash-attn", marker = "python_full_version == '3.11.*' and sys_platform != 'darwin' and sys_platform != 'linux' and sys_platform != 'win32'" },
+    { name = "flash-attn", marker = "python_full_version == '3.11.*' and sys_platform == 'linux'", url = "https://github.com/mjun0812/flash-attention-prebuild-wheels/releases/download/v0.7.12/flash_attn-2.8.3+cu128torch2.10-cp311-cp311-linux_x86_64.whl" },
+    { name = "flash-attn", marker = "python_full_version == '3.11.*' and sys_platform == 'win32'", url = "https://github.com/sdbds/flash-attention-for-windows/releases/download/2.8.2/flash_attn-2.8.2+cu128torch2.7.1cxx11abiFALSEfullbackward-cp311-cp311-win_amd64.whl" },
     { name = "lightning", specifier = ">=2.0.0" },
     { name = "loguru", specifier = ">=0.7.3" },
-    { name = "lycoris-lora", marker = "extra == 'all'", specifier = ">=2.0.0" },
-    { name = "lycoris-lora", marker = "extra == 'lokr'", specifier = ">=2.0.0" },
+    { name = "lycoris-lora", specifier = ">=2.0.0" },
     { name = "peft", specifier = ">=0.18.0" },
-    { name = "prodigyopt", marker = "extra == 'all'", specifier = ">=1.1.2" },
-    { name = "prodigyopt", marker = "extra == 'prodigy'", specifier = ">=1.1.2" },
+    { name = "prodigyopt", specifier = ">=1.1.2" },
     { name = "rich", specifier = ">=13.0.0" },
     { name = "safetensors" },
     { name = "soundfile", specifier = ">=0.13.1" },
     { name = "tensorboard", specifier = ">=2.20.0" },
-    { name = "textual", marker = "extra == 'all'", specifier = ">=0.47.0" },
     { name = "textual", marker = "extra == 'tui'", specifier = ">=0.47.0" },
     { name = "torch", marker = "platform_machine == 'arm64' and sys_platform == 'darwin'", specifier = ">=2.9.1" },
     { name = "torch", marker = "sys_platform == 'linux'", specifier = "==2.10.0+cu128", index = "https://download.pytorch.org/whl/cu128" },
@@ -1966,7 +1965,7 @@ requires-dist = [
     { name = "transformers", specifier = ">=4.51.0,<4.58.0" },
     { name = "vector-quantize-pytorch", specifier = ">=1.27.15" },
 ]
-provides-extras = ["lokr", "8bit", "prodigy", "tui", "flash", "all"]
+provides-extras = ["tui"]
 
 [[package]]
 name = "soundfile"

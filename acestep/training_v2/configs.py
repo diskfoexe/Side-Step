@@ -151,9 +151,23 @@ class TrainingConfigV2(TrainingConfig):
     data_proportion: float = 0.5
     """Data proportion for sample_t_r (from model config)."""
 
+    loss_weighting: str = "none"
+    """Loss weighting strategy: 'none' (flat MSE) or 'min_snr'.
+    min-SNR can yield better results on SFT and base models."""
+
+    snr_gamma: float = 5.0
+    """Gamma clamp for min-SNR weighting. Only used when loss_weighting='min_snr'."""
+
     # --- Adapter selection ----------------------------------------------------
     adapter_type: str = "lora"
     """Adapter type: 'lora' (PEFT) or 'lokr' (LyCORIS)."""
+
+    # --- Model variant detection ---------------------------------------------
+    is_turbo: bool = False
+    """Auto-detected: ``True`` when the model is turbo or a turbo-based
+    fine-tune (``num_inference_steps == 8``).  Controls whether training
+    uses discrete 8-step sampling (turbo) or continuous logit-normal
+    sampling + CFG dropout (base/sft).  Not user-facing."""
 
     # --- Model / paths ------------------------------------------------------
     model_variant: str = "turbo"
@@ -256,6 +270,9 @@ class TrainingConfigV2(TrainingConfig):
                 "timestep_mu": self.timestep_mu,
                 "timestep_sigma": self.timestep_sigma,
                 "data_proportion": self.data_proportion,
+                "loss_weighting": self.loss_weighting,
+                "snr_gamma": self.snr_gamma,
+                "is_turbo": self.is_turbo,
                 "model_variant": self.model_variant,
                 "checkpoint_dir": self.checkpoint_dir,
                 "dataset_dir": self.dataset_dir,

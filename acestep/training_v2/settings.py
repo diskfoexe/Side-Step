@@ -6,9 +6,8 @@ Stored as JSON at a platform-aware location:
     Linux/macOS:  ``~/.config/sidestep/settings.json``
     Windows:      ``%APPDATA%\\sidestep\\settings.json``
 
-Settings hold environment paths (checkpoint directory, ACE-Step install
-location) and flags (vanilla intent, first-run state).  They are *not*
-training hyperparameters -- those live in presets.
+Settings hold the checkpoint directory path and first-run state.  They
+are *not* training hyperparameters -- those live in presets.
 """
 
 from __future__ import annotations
@@ -23,7 +22,7 @@ from typing import Any, Dict, Optional
 logger = logging.getLogger(__name__)
 
 # Current schema version -- bump when adding/renaming keys.
-_SCHEMA_VERSION = 1
+_SCHEMA_VERSION = 2
 
 
 # ---------------------------------------------------------------------------
@@ -53,8 +52,6 @@ def _default_settings() -> Dict[str, Any]:
     return {
         "version": _SCHEMA_VERSION,
         "checkpoint_dir": None,
-        "ace_step_dir": None,
-        "vanilla_enabled": False,
         "first_run_complete": False,
     }
 
@@ -112,9 +109,3 @@ def get_checkpoint_dir() -> Optional[str]:
     return data.get("checkpoint_dir")
 
 
-def get_ace_step_dir() -> Optional[str]:
-    """Return the stored ACE-Step install path, or ``None``."""
-    data = load_settings()
-    if data is None:
-        return None
-    return data.get("ace_step_dir")

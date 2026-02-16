@@ -51,11 +51,13 @@ These are always shown regardless of mode.
 | Warmup steps | `100` | LR ramps from 10% to 100% over this many steps | Longer warmup (200+) for stability with large LR |
 | Seed | `42` | Random seed for reproducibility | Change to get different training runs |
 
-#### CFG Settings (corrected mode only)
+#### CFG & Loss Settings (base/sft only -- skipped for turbo)
 
 | Setting | Default | What it does | Why you'd change it |
 |---|---|---|---|
-| CFG dropout ratio | `0.15` | Probability of replacing conditions with null embeddings | The base model was trained with 0.15 -- match it. Lower values reduce CFG effectiveness |
+| CFG dropout ratio | `0.15` | Probability of replacing conditions with null embeddings | The base model was trained with 0.15 -- match it. Lower values reduce CFG effectiveness. Auto-disabled for turbo |
+| Loss weighting | `none` | `none` (flat MSE) or `min_snr` (rebalances across noise levels) | Try `min_snr` if your base/sft output sounds mushy. See [[Loss Weighting and CFG Dropout]] |
+| SNR gamma | `5.0` | Aggressiveness of min-SNR rebalancing (only with `min_snr`) | Leave at 5.0 unless experimenting. Lower = more aggressive |
 
 #### Logging & Checkpoints
 

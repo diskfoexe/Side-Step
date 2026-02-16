@@ -1,6 +1,7 @@
 """
-Wizard flow for training (fixed or vanilla mode).
+Wizard flow for training.
 
+Training mode is auto-detected from the model variant (turbo vs base/sft).
 Uses a step-list pattern for go-back navigation.  Step functions are
 defined in ``flows_train_steps`` to keep this module under the LOC cap.
 
@@ -33,7 +34,15 @@ from acestep.training_v2.ui.flows_train_steps import (
 
 # ---- Step list builder ------------------------------------------------------
 
-def _build_steps(mode: str, config_mode: str, adapter_type: str = "lora") -> list[tuple[str, callable]]:
+def _is_turbo_variant(answers: dict) -> bool:
+    """Return ``True`` if the selected model is turbo or turbo-based."""
+    base = answers.get("base_model", answers.get("model_variant", "turbo"))
+    if isinstance(base, str) and "turbo" in base.lower():
+        return True
+    return answers.get("num_inference_steps", 8) == 8
+
+
+def _build_steps(answers: dict, config_mode: str, adapter_type: str = "lora") -> list[tuple[str, callable]]:
     """Return the ordered list of ``(label, step_fn)`` for this wizard run."""
     adapter_step = step_lokr if adapter_type == "lokr" else step_lora
     adapter_label = "LoKR Settings" if adapter_type == "lokr" else "LoRA Settings"
@@ -44,8 +53,9 @@ def _build_steps(mode: str, config_mode: str, adapter_type: str = "lora") -> lis
         ("Training Settings", step_training),
     ]
 
-    if mode == "fixed":
-        steps.append(("Corrected Training Settings", step_cfg))
+    # CFG dropout settings only apply to base/sft (turbo doesn't use CFG)
+    if not _is_turbo_variant(answers):
+        steps.append(("CFG Dropout Settings", step_cfg))
 
     steps.append(("Logging & Checkpoints", step_logging))
 
@@ -135,15 +145,31 @@ def _offer_save_preset(answers: dict) -> None:
 
 # ---- Public entry point -----------------------------------------------------
 
+def _print_training_strategy(answers: dict) -> None:
+    """Show the auto-detected training strategy after model selection."""
+    if _is_turbo_variant(answers):
+        msg = "Turbo detected -- using discrete 8-step sampling (no CFG)"
+    else:
+        msg = "Base/SFT detected -- using continuous sampling + CFG dropout"
+
+    if is_rich_active() and console is not None:
+        console.print(f"\n  [bold cyan]{msg}[/]\n")
+    else:
+        print(f"\n  {msg}\n")
+
+
 def wizard_train(
     mode: str = "fixed",
     adapter_type: str = "lora",
     preset: dict | None = None,
 ) -> argparse.Namespace:
-    """Interactive wizard for training (fixed or vanilla).
+    """Interactive wizard for training.
+
+    Training mode is always ``'fixed'``; turbo vs base/sft is
+    auto-detected from the selected model variant.
 
     Args:
-        mode: Training mode ('fixed' or 'vanilla').
+        mode: Training subcommand (always ``'fixed'``).
         adapter_type: Adapter type ('lora' or 'lokr').
         preset: Optional dict of pre-filled answer values (e.g. dataset_dir
             from the chain flow after preprocessing).  These values are
@@ -183,9 +209,10 @@ def wizard_train(
         raise
 
     config_mode = answers["config_mode"]
-    steps = _build_steps(mode, config_mode, adapter_type)
+    steps = _build_steps(answers, config_mode, adapter_type)
     total = len(steps)
     i = 0
+    printed_strategy = False
 
     while i < total:
         label, step_fn = steps[i]
@@ -193,6 +220,14 @@ def wizard_train(
             step_indicator(i + 1, total, label)
             step_fn(answers)
             i += 1
+
+            # After model selection (step_required), show auto-detected
+            # strategy and rebuild steps in case turbo/base changed.
+            if step_fn is step_required and not printed_strategy:
+                _print_training_strategy(answers)
+                printed_strategy = True
+                steps = _build_steps(answers, config_mode, adapter_type)
+                total = len(steps)
         except GoBack:
             if i == 0:
                 try:
@@ -200,12 +235,13 @@ def wizard_train(
                 except GoBack:
                     raise
                 config_mode = answers["config_mode"]
-                steps = _build_steps(mode, config_mode, adapter_type)
+                steps = _build_steps(answers, config_mode, adapter_type)
                 total = len(steps)
                 i = 0
+                printed_strategy = False
             else:
                 i -= 1
 
     _offer_save_preset(answers)
 
-    return build_train_namespace(answers, mode)
+    return build_train_namespace(answers)

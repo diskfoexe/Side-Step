@@ -9,35 +9,47 @@
   by dernet     ((BETA TESTING))
 ```
 
-**Side-Step** is a **standalone** training toolkit for [ACE-Step 1.5](https://github.com/ace-step/ACE-Step-1.5) models. It provides corrected LoRA and LoKR fine-tuning implementations that fix fundamental bugs (for models other than turbo) in the original trainer while adding low-VRAM support for local GPUs.
+**Side-Step** is a **standalone** training toolkit for [ACE-Step 1.5](https://github.com/ace-step/ACE-Step-1.5) models. It provides variant-aware LoRA and LoKR fine-tuning that auto-detects your model (turbo, base, or sft) and selects the correct training strategy, with low-VRAM support for local GPUs.
 
-> **Standalone?** Yes. Side-Step installs as its own project with its own dependencies. The corrected (fixed) training loop, preprocessing, and wizard all work without a base ACE-Step installation -- you only need the model checkpoints. Vanilla training mode still requires base ACE-Step installed alongside.
+> **Standalone?** Yes. Side-Step installs as its own project with its own dependencies. No base ACE-Step installation needed -- just the model checkpoints.
 
 
 ## Why Side-Step?
 
-The original ACE-Step trainer has two critical discrepancies from how the base models were actually trained. Side-Step was built to bridge this gap:
+If you're training LoRAs for ACE-Step, Side-Step is built to get you from audio files to a working adapter with the least friction and the most correct results.
 
-1.  **Continuous Timestep Sampling:** The original trainer uses a discrete 8-step schedule. This is fine for turbo, which the original training script is hardcoded for. Side-Step implements **Logit-Normal continuous sampling**, ensuring the model learns the full range of the denoising process.
-2.  **CFG Dropout (Classifier-Free Guidance):** The original trainer lacks condition dropout. Side-Step implements a **15% null-condition dropout**, teaching the model how to handle both prompted and unprompted generation. Without this, inference quality suffers.
-3.  **Standalone Core:** The corrected training loop, preprocessing, and wizard bundle all required ACE-Step utilities. No base ACE-Step install needed -- just the model weights.
-4.  **Built for the cloud:** The original Gradio breaks when you try to use it for training. Use this instead :)
+### As a trainer, you get:
+
+- **Just works for every model.** Pick turbo, base, or sft -- Side-Step auto-detects the variant and uses the right training recipe. No manual config, no wrong settings.
+- **Correct training out of the box.** The upstream trainer uses a discrete 8-step schedule hardcoded for turbo. That's wrong for base and sft models (they were trained with continuous logit-normal sampling + CFG dropout). Side-Step matches each model's actual training distribution automatically.
+- **Low VRAM, real hardware.** Trains on 8 GB GPUs. Gradient checkpointing, 8-bit optimizers, encoder offloading, and VRAM-tier presets are built in. No A100 required.
+- **Interactive wizard or CLI.** Step-by-step wizard with go-back, presets, and flow chaining. Or one-liner CLI for scripted pipelines and cloud runs.
+- **ComfyUI-ready exports.** One-click conversion from PEFT LoRA to diffusers format. Your adapter loads in ComfyUI without manual key remapping.
+- **Two-pass preprocessing.** Converts raw audio to training tensors in two low-VRAM passes (~3 GB then ~6 GB). Preprocess once, train with any adapter type.
+- **No ACE-Step install needed.** Fully standalone. All required utilities are bundled. You only need the model checkpoint files.
+
+### What Side-Step fixes in the upstream trainer:
+
+1.  **Variant-aware timestep sampling:** Turbo uses discrete 8-step sampling (matching its inference schedule). Base and sft use continuous logit-normal sampling (matching how they were actually trained). The upstream trainer hardcodes the turbo schedule for everything.
+2.  **CFG Dropout for base/sft:** Side-Step implements **15% null-condition dropout** for base and sft models, teaching the model to handle both prompted and unprompted generation. Turbo doesn't need this and Side-Step skips it automatically.
+3.  **Min-SNR loss weighting (optional):** Rebalances the loss so fine detail (timbre, transients) gets as much training signal as gross structure. Particularly useful for base/sft where the continuous timestep range creates an imbalance.
+4.  **ComfyUI LoRA export:** PEFT saves adapter keys with a prefix that ComfyUI doesn't recognize. Side-Step includes a converter that strips the prefix so your LoRAs load correctly.
 
 ---
 
 ## Beta Status & Support
-**Current Version:** 0.8.0-beta
+**Current Version:** 0.8.1-beta
 
-| Feature | Status | Standalone? | Note |
-| :--- | :--- | :--- | :--- |
-| **Fixed Training (LoRA)** | Working | Yes | Recommended for all users. Corrected timesteps + CFG dropout. |
-| **Fixed Training (LoKR)** | **Experimental** | Yes | Uses LyCORIS. May have rough edges. |
-| **Vanilla Training** | Working | **No** | Reproduction of original behavior. Requires base ACE-Step 1.5 installed alongside. |
-| **Interactive Wizard** | Working | Yes | `python train.py` with no args. Session loop, go-back, presets, first-run setup. |
-| **CLI Preprocessing** | Beta | Yes | Two-pass pipeline, low VRAM. Adapter-agnostic (same tensors for LoRA and LoKR). |
-| **Gradient Estimation** | Beta | Yes | Ranks attention modules by sensitivity. In Experimental menu. |
-| **Presets System** | Working | Yes | Save/load/manage training configurations. Stores adapter type. |
-| **TUI (Textual UI)** | **BROKEN** | -- | Do not use `sidestep_tui.py` yet. |
+| Feature | Status | Note |
+| :--- | :--- | :--- |
+| **Training (LoRA)** | Working | Recommended. Auto-detects turbo vs base/sft. |
+| **Training (LoKR)** | **Experimental** | Uses LyCORIS. May have rough edges. |
+| **ComfyUI LoRA Export** | Working | Converts PEFT adapters to diffusers format. |
+| **Interactive Wizard** | Working | `uv run train.py` with no args. Session loop, go-back, presets, first-run setup. |
+| **CLI Preprocessing** | Beta | Two-pass pipeline, low VRAM. Adapter-agnostic (same tensors for LoRA and LoKR). |
+| **Gradient Estimation** | Beta | Ranks attention modules by sensitivity. In Experimental menu. |
+| **Presets System** | Working | Save/load/manage training configurations. Stores adapter type. |
+| **TUI (Textual UI)** | **BROKEN** | Do not use `sidestep_tui.py` yet. |
 
 > **Something broken?** This is a beta. You can always roll back:
 > ```bash
@@ -45,6 +57,18 @@ The original ACE-Step trainer has two critical discrepancies from how the base m
 > git checkout <hash>
 > ```
 > If you hit issues, please open an issue -- it helps us stabilize faster.
+
+### What's new in 0.8.1-beta
+
+**Variant-aware training (the big one):**
+- **Auto-detects turbo vs base/sft.** Side-Step now reads the model variant at startup and selects the correct training strategy automatically. Turbo models use discrete 8-step timestep sampling (matching their inference schedule). Base and sft models use continuous logit-normal sampling + CFG dropout (matching how they were originally trained). No manual mode selection needed.
+- **Vanilla mode deprecated.** The `vanilla` subcommand and the "Corrected vs Vanilla" wizard submenu are gone. Turbo-correct behavior is now handled natively inside `fixed` mode. If you were using vanilla mode, `fixed` mode now does the same thing better -- and it's fully standalone.
+- **Simplified setup wizard.** First-run setup no longer asks about vanilla mode or ACE-Step installation paths. Just point at your checkpoints and go.
+
+**New features:**
+- **ComfyUI LoRA export** -- PEFT saves adapter keys with a `base_model.model.` prefix that ComfyUI doesn't recognize. New converter strips the prefix and writes a `pytorch_lora_weights.safetensors` file that ComfyUI loads directly. Access via CLI (`python train.py convert --adapter-dir ./my_lora/final`) or the wizard ("Convert LoRA for ComfyUI" menu option).
+- **Min-SNR loss weighting** -- Optional `--loss-weighting min_snr` rebalances training loss so fine detail (timbre, transients, mixing) gets as much signal as gross structure. Most useful for base/sft models where the continuous timestep range creates an imbalance. Default is `none` (flat MSE, same as before).
+- **TensorBoard timestep histograms** -- The sampled timestep distribution is now logged as a histogram. Verify that your training is sampling the right noise levels under Histograms > `train/timestep_distribution`.
 
 ### What's new in 0.8.0-beta
 
@@ -114,7 +138,7 @@ The original ACE-Step trainer has two critical discrepancies from how the base m
 
 ## Installation
 
-Side-Step is **partly standalone**: the corrected training loop, preprocessing, wizard, and all CLI tools work without a base ACE-Step installation. You only need the model checkpoint files. The only thing that requires ACE-Step installed alongside is **vanilla training mode** (which reproduces the original bugged behavior for backward compatibility).
+Side-Step is **fully standalone**. The training loop, preprocessing, wizard, and all CLI tools work without a base ACE-Step installation. You only need the model checkpoint files.
 
 We **strongly recommend** using [uv](https://docs.astral.sh/uv/) for dependency management -- it handles Python 3.11, PyTorch with CUDA, Flash Attention wheels, and all other dependencies automatically.
 
@@ -163,19 +187,6 @@ You need the model weights before you can train. Options:
 2. **Manual download:** Get the weights from [HuggingFace](https://huggingface.co/ACE-Step/Ace-Step1.5) and place them in a `checkpoints/` directory inside Side-Step.
 
 > **IMPORTANT: Never rename checkpoint folders.** The model loader uses folder names and `config.json` files to identify model variants (turbo, base, sft). Renaming them will break loading.
-
-### Vanilla Mode (optional -- requires ACE-Step)
-
-Vanilla training mode reproduces the original ACE-Step training behavior (bugged discrete timesteps, no CFG dropout). Most users should use **fixed** mode instead. If you specifically need vanilla mode:
-
-```bash
-# Clone ACE-Step alongside Side-Step
-git clone https://github.com/ace-step/ACE-Step-1.5.git
-cd ACE-Step-1.5 && uv sync && cd ..
-
-# On first run, Side-Step's setup wizard will ask if you want vanilla mode
-# and where your ACE-Step installation is.
-```
 
 > **Note:** With plain pip, you are responsible for installing the correct PyTorch version with CUDA support for your platform. This is the #1 source of "it doesn't work" issues. `uv sync` handles this automatically.
 
@@ -273,14 +284,12 @@ uv run python train.py estimate \
     --top-k 16
 ```
 
-### Option E: Vanilla Training (Requires ACE-Step)
-Reproduces the original ACE-Step training behavior (bugged discrete timesteps, no CFG dropout). Most users should use **fixed** mode instead. Requires a base ACE-Step installation alongside Side-Step:
+### Option E: Convert LoRA for ComfyUI
+PEFT saves adapter keys with a prefix that ComfyUI doesn't recognize. Convert to diffusers format:
 ```bash
-uv run python train.py vanilla \
-    --checkpoint-dir ./ACE-Step-1.5/checkpoints \
-    --audio-dir ./my_audio \
-    --output-dir ./output/my_vanilla_lora
+uv run train.py convert --adapter-dir ./output/my_lora/final
 ```
+This writes `pytorch_lora_weights.safetensors` into the adapter directory. Also available from the wizard main menu ("Convert LoRA for ComfyUI").
 
 > **Advanced subcommands:** `selective` (corrected training with dataset-specific module selection) and `compare-configs` (compare module config JSON files) are also available. These are advanced/WIP features -- run `uv run train.py selective --help` or `uv run train.py compare-configs --help` for details.
 
@@ -336,6 +345,7 @@ Side-Step/                       <-- Standalone project root
 └── acestep/
     └── training_v2/             <-- Side-Step logic (all standalone)
         ├── trainer_fixed.py     <-- The corrected training loop
+        ├── export_utils.py      <-- ComfyUI LoRA converter (PEFT -> diffusers)
         ├── preprocess.py        <-- Two-pass preprocessing pipeline
         ├── estimate.py          <-- Gradient sensitivity estimation
         ├── model_loader.py      <-- Per-component model loading (supports fine-tunes)
@@ -445,7 +455,9 @@ Available in: fixed
 
 | Argument | Default | Description |
 |----------|---------|-------------|
-| `--cfg-ratio` | `0.15` | Classifier-free guidance dropout rate. With this probability, each sample's condition is replaced with a null embedding during training. This teaches the model to work both with and without text prompts. The model was originally trained with 0.15 |
+| `--cfg-ratio` | `0.15` | Classifier-free guidance dropout rate. With this probability, each sample's condition is replaced with a null embedding during training. This teaches the model to work both with and without text prompts. Auto-disabled for turbo models |
+| `--loss-weighting` | `none` | Loss weighting strategy: `none` (flat MSE) or `min_snr` (rebalances loss across noise levels). `min_snr` can yield better results on base/sft models |
+| `--snr-gamma` | `5.0` | Gamma clamp for min-SNR weighting. Only used when `--loss-weighting min_snr`. Higher = less aggressive rebalancing |
 
 ### Data Loading
 
@@ -499,25 +511,29 @@ Available in: vanilla, fixed
 
 > **Important:** The `--shift` and `--num-inference-steps` settings are **inference metadata only**. They are saved alongside your adapter so you know which values to use when generating audio with the trained LoRA/LoKR. **They do not enter the training loop.**
 
-### How Side-Step trains (corrected/fixed mode)
+### How Side-Step trains
 
-Side-Step's corrected training loop uses **continuous logit-normal timestep sampling** -- an exact reimplementation of the `sample_t_r()` function defined inside each ACE-Step model variant's own `forward()` method. The core operation is:
+Side-Step auto-detects the model variant and selects the correct timestep sampling strategy:
 
-```python
-t = sigmoid(N(timestep_mu, timestep_sigma))
-```
-
-The `timestep_mu` and `timestep_sigma` parameters are read automatically from each model's `config.json` at startup. All three model variants (turbo, base, sft) define the same `sample_t_r()` function and call it the same way during their native training forward pass. Our `sample_timesteps()` matches this line-for-line.
-
-### How the upstream community trainer trains
-
-The original ACE-Step community trainer (`acestep/training/trainer.py`) uses a **discrete 8-step schedule** hardcoded from `shift=3.0`:
+**Turbo models** use **discrete 8-step timestep sampling** -- the adapter trains at exactly the timestep values it will see during 8-step inference:
 
 ```python
 TURBO_SHIFT3_TIMESTEPS = [1.0, 0.955, 0.9, 0.833, 0.75, 0.643, 0.5, 0.3]
 ```
 
-Each training step randomly picks one of these 8 values. This is **not** how the models were originally trained -- it only approximates the turbo model's inference schedule. For base and sft models, this schedule is wrong entirely.
+Each training step uniformly picks one of these 8 values. CFG dropout is skipped for turbo (turbo inference doesn't use classifier-free guidance).
+
+**Base and sft models** use **continuous logit-normal timestep sampling** -- an exact reimplementation of the `sample_t_r()` function defined inside each model variant's own `forward()` method:
+
+```python
+t = sigmoid(N(timestep_mu, timestep_sigma))
+```
+
+The `timestep_mu` and `timestep_sigma` parameters are read automatically from each model's `config.json` at startup. CFG dropout (15% null-condition replacement) is applied to teach the model to handle both prompted and unprompted generation.
+
+### How the upstream community trainer trains
+
+The original ACE-Step community trainer (`acestep/training/trainer.py`) uses the same discrete 8-step schedule for **all** model variants, regardless of whether the model is turbo, base, or sft. This is correct for turbo but wrong for base and sft models, which were originally trained with continuous sampling.
 
 ### Where shift actually matters
 
@@ -525,14 +541,14 @@ Each training step randomly picks one of these 8 values. This is **not** how the
 
 ### Why this matters
 
-- **Side-Step can train all variants** (turbo, base, sft) because it uses the same continuous sampling the models expect.
+- **Side-Step trains all variants correctly** because it matches each model's actual training distribution.
 - **The upstream trainer only works properly for turbo** because its discrete schedule is derived from `shift=3.0`.
-- **Changing `--shift` in Side-Step will not change your training results** -- the training timestep distribution is controlled by `timestep_mu` and `timestep_sigma` from the model config, which Side-Step reads automatically.
+- **Changing `--shift` in Side-Step will not change your training results** -- the training timestep distribution is controlled by the model variant auto-detection (turbo vs base/sft), not by the shift value.
 - **You still need the correct shift at inference time.** Use `shift=3.0` for turbo LoRAs and `shift=1.0` for base/sft LoRAs when generating audio.
 
 ---
 
 ## Contributing
-Contributions are welcome! Specifically looking for help fixing the **Textual TUI** and testing the new preprocessing + estimation modules.
+Contributions are welcome! Specifically looking for help fixing the **Textual TUI**, testing the preprocessing + estimation modules, and improving the Windows experience. LoKR testing across different hardware is also appreciated.
 
 **License:** Follows the original ACE-Step 1.5 licensing

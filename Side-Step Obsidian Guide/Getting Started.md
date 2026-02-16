@@ -71,17 +71,14 @@ Go to [HuggingFace ACE-Step](https://huggingface.co/ACE-Step/Ace-Step1.5) and do
 When you run `python train.py` for the first time (without any arguments), the setup wizard activates:
 
 1. **Welcome + disclaimers** -- Reminds you about model weights and the no-rename rule
-2. **Vanilla intent** -- "Do you plan to use Vanilla training mode?"
-   - If **yes**: provide the path to your ACE-Step installation
-   - If **no**: corrected mode is fully standalone, no ACE-Step needed
-3. **Checkpoint directory** -- Where your model weights live (e.g., `../ACE-Step-1.5/checkpoints`)
-4. **Model scan** -- Lists all discovered models with official/custom labels
+2. **Checkpoint directory** -- Where your model weights live (e.g., `../ACE-Step-1.5/checkpoints`)
+3. **Model scan** -- Lists all discovered models with official/custom labels
 
 Settings are saved to:
 - Linux/macOS: `~/.config/sidestep/settings.json`
 - Windows: `%APPDATA%\sidestep\settings.json`
 
-You can re-run setup at any time from the main menu: **Settings (paths, vanilla mode)**.
+You can re-run setup at any time from the main menu: **Settings**.
 
 ---
 

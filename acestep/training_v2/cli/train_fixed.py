@@ -1,18 +1,14 @@
 """
-fixed subcommand -- Corrected training: continuous timesteps + CFG dropout.
+fixed subcommand -- Variant-aware adapter training.
 
-Uses ``FixedLoRATrainer`` which matches each model variant's own
-``forward()`` training logic:
+Auto-detects the model variant and selects the appropriate strategy:
 
-    - Continuous logit-normal timestep sampling via ``sample_timesteps()``
-    - CFG dropout (``cfg_ratio=0.15``) using ``model.null_condition_emb``
-    - ``r = t`` (``use_meanflow=False``)
-    - Reads ``timestep_mu``, ``timestep_sigma``, ``data_proportion``
-      from the model's ``config.json``
+  **Turbo**: discrete 8-step timestep sampling, no CFG dropout.
+  **Base / SFT**: continuous logit-normal timestep sampling via
+  ``sample_timesteps()`` + CFG dropout (``cfg_ratio=0.15``).
 
-Reuses the same data pipeline (``PreprocessedDataModule``) and LoRA
-utilities (``inject_lora_into_dit``, ``save_lora_weights``, etc.) as
-the vanilla subcommand.
+Both paths share the same data pipeline (``PreprocessedDataModule``)
+and adapter utilities (``inject_lora_into_dit``, ``save_lora_weights``).
 """
 
 from __future__ import annotations

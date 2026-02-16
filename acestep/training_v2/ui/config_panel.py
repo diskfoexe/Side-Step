@@ -52,6 +52,8 @@ _DEFAULTS: Dict[str, Any] = {
     "log_heavy_every": 50,
     # Corrected training
     "cfg_ratio": 0.15,
+    "loss_weighting": "none",
+    "snr_gamma": 5.0,
     "timestep_mu": -0.4,
     "timestep_sigma": 1.0,
     "data_proportion": 0.5,
@@ -102,6 +104,8 @@ _GROUPS = [
         "Corrected Training",
         [
             ("cfg_ratio", "CFG dropout ratio"),
+            ("loss_weighting", "Loss weighting (none / min_snr)"),
+            ("snr_gamma", "SNR gamma (min_snr only)"),
             ("timestep_mu", "Timestep mu"),
             ("timestep_sigma", "Timestep sigma"),
             ("data_proportion", "Data proportion"),

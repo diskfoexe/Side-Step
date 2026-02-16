@@ -1,8 +1,13 @@
 """
-Correct Timestep Sampling and CFG Dropout for ACE-Step Training V2
+Timestep Sampling and CFG Dropout for ACE-Step Training V2
 
-Reimplements ``sample_t_r()`` exactly as defined in the model's own
-``forward()`` method (``modeling_acestep_v15_turbo.py`` lines 169-194).
+Provides two sampling strategies:
+
+- **Continuous logit-normal** (base/sft): reimplements ``sample_t_r()``
+  from ``modeling_acestep_v15_turbo.py`` lines 169-194.
+- **Discrete 8-step** (turbo): samples uniformly from the turbo
+  ``shift=3.0`` inference schedule so the LoRA trains at exactly the
+  timestep values used during inference.
 
 Also provides ``apply_cfg_dropout()`` matching lines 1691-1699 of the
 same file.
@@ -10,11 +15,64 @@ same file.
 
 from __future__ import annotations
 
+from typing import List, Optional
+
 import torch
 
 
 # ---------------------------------------------------------------------------
-# Continuous logit-normal timestep sampling
+# Turbo discrete timestep schedule (shift=3.0, 8 inference steps)
+# ---------------------------------------------------------------------------
+
+TURBO_SHIFT3_TIMESTEPS: List[float] = [
+    1.0, 0.9545454545454546, 0.9, 0.8333333333333334,
+    0.75, 0.6428571428571429, 0.5, 0.3,
+]
+"""Discrete timestep schedule for turbo inference with ``shift=3.0``.
+
+Matches ``SHIFT_TIMESTEPS[3.0]`` in
+``modeling_acestep_v15_turbo.py`` line 1822.
+"""
+
+
+# ---------------------------------------------------------------------------
+# Discrete timestep sampling (turbo)
+# ---------------------------------------------------------------------------
+
+def sample_discrete_timesteps(
+    batch_size: int,
+    device: torch.device | str,
+    dtype: torch.dtype,
+    timesteps: Optional[List[float]] = None,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """Sample uniformly from a discrete timestep schedule.
+
+    Each sample in the batch independently picks one of the schedule
+    values with equal probability.  Used for turbo LoRA training so the
+    adapter trains at exactly the timestep values it will see during
+    8-step inference.
+
+    Args:
+        batch_size: Number of samples.
+        device: Torch device.
+        dtype: Tensor dtype.
+        timesteps: Schedule values.  Defaults to
+            :data:`TURBO_SHIFT3_TIMESTEPS`.
+
+    Returns:
+        ``(t, r)`` -- each of shape ``[batch_size]``.  ``r == t``
+        (matching ``use_meanflow=False``).
+    """
+    if timesteps is None:
+        timesteps = TURBO_SHIFT3_TIMESTEPS
+    ts = torch.tensor(timesteps, device=device, dtype=dtype)
+    indices = torch.randint(0, ts.shape[0], (batch_size,), device=device)
+    t = ts[indices]
+    return t, t  # r = t
+
+
+# ---------------------------------------------------------------------------
+# Continuous logit-normal timestep sampling (base/sft)
 # ---------------------------------------------------------------------------
 
 def sample_timesteps(
