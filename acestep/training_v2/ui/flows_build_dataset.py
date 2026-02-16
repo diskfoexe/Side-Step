@@ -56,14 +56,25 @@ def wizard_build_dataset() -> dict:
             allow_back=True,
         )
 
-    # Step 3: Dataset name
+    # Step 3: Genre ratio
+    genre_ratio_str = ask(
+        "Genre ratio (% of samples using genre as prompt, 0-100)",
+        default="0",
+        allow_back=True,
+    )
+    try:
+        genre_ratio = max(0, min(100, int(genre_ratio_str or "0")))
+    except ValueError:
+        genre_ratio = 0
+
+    # Step 4: Dataset name
     name = ask(
         "Dataset name (used in the JSON metadata block)",
         default="local_dataset",
         allow_back=True,
     )
 
-    # Step 4: Output path
+    # Step 5: Output path
     output = ask(
         "Output JSON path (leave empty for <folder>/dataset.json)",
         default="",
@@ -82,6 +93,7 @@ def wizard_build_dataset() -> dict:
             tag_position=tag_position,
             name=name,
             output=output,
+            genre_ratio=genre_ratio,
         )
     except FileNotFoundError as exc:
         _print_error(str(exc))

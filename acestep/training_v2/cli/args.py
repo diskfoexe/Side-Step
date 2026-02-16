@@ -157,6 +157,12 @@ def build_root_parser() -> argparse.ArgumentParser:
         help="Tag placement in prompts (default: prepend)",
     )
     p_build.add_argument(
+        "--genre-ratio",
+        type=int,
+        default=0,
+        help="Percentage of samples that use genre instead of caption (0-100, default: 0)",
+    )
+    p_build.add_argument(
         "--name",
         type=str,
         default="local_dataset",

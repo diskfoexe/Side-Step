@@ -312,6 +312,7 @@ def _run_build_dataset(args) -> int:
     input_dir = args.input
     tag = getattr(args, "tag", "")
     tag_position = getattr(args, "tag_position", "prepend")
+    genre_ratio = getattr(args, "genre_ratio", 0)
     name = getattr(args, "name", "local_dataset")
     output = getattr(args, "output", None)
 
@@ -321,6 +322,7 @@ def _run_build_dataset(args) -> int:
     print(f"  Input:         {input_dir}")
     print(f"  Tag:           {tag or '(none)'}")
     print(f"  Tag position:  {tag_position}")
+    print(f"  Genre ratio:   {genre_ratio}%")
     print(f"  Dataset name:  {name}")
     print(f"  Output:        {output or '<input>/dataset.json'}")
     print("=" * 60)
@@ -332,6 +334,7 @@ def _run_build_dataset(args) -> int:
             tag_position=tag_position,
             name=name,
             output=output,
+            genre_ratio=genre_ratio,
         )
     except (FileNotFoundError, OSError) as exc:
         print(f"[FAIL] {exc}", file=sys.stderr)

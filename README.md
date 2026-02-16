@@ -64,6 +64,9 @@ If you're training LoRAs for ACE-Step, Side-Step is built to get you from audio 
 **Removed broken feature:**
 - **ComfyUI LoRA export removed** -- The PEFT-to-diffusers key conversion tool (added in 0.8.1) was based on incorrect assumptions about how ComfyUI loads ACE-Step LoRAs. ComfyUI nodes use `PeftModel.from_pretrained()` which natively handles PEFT's key format. The converter was stripping prefixes that PEFT's own loader needs, producing adapters that fail to load ("lora key not loaded" errors). **Your PEFT adapters already work in ComfyUI as-is** -- no conversion needed. The `convert` CLI subcommand, wizard menu option, and `export_utils.py` module have been removed.
 
+**New feature:**
+- **Genre ratio in dataset builder** -- The `build-dataset` command and wizard now accept a `--genre-ratio` percentage (0-100). During preprocessing, that fraction of samples will be conditioned on the short genre tag instead of the full caption, teaching the LoRA to generalize to genre-only prompts at inference time. Default is 0 (caption always used, same behavior as before).
+
 ### What's new in 0.8.2-beta
 
 **Build dataset from folder:**
@@ -574,6 +577,7 @@ Available in: `build-dataset` subcommand
 | `--input` | **(required)** | Directory containing audio files and sidecar `.txt` metadata. Scanned recursively |
 | `--tag` | *(empty)* | Custom trigger tag applied to all samples' captions |
 | `--tag-position` | `prepend` | Where to place the tag: `prepend`, `append`, or `replace` |
+| `--genre-ratio` | `0` | Percentage (0-100) of samples that use genre instead of caption during preprocessing. At 30, roughly 30% of samples are conditioned on the short genre tag instead of the full caption, teaching the model to generalize to genre-only prompts |
 | `--name` | `local_dataset` | Dataset name stored in the JSON metadata block |
 | `--output` | `<input>/dataset.json` | Output path for the generated dataset JSON |
 

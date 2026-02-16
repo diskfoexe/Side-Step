@@ -112,6 +112,7 @@ def build_dataset(
     tag_position: str = "prepend",
     name: str = "local_dataset",
     output: Optional[str] = None,
+    genre_ratio: int = 0,
 ) -> Tuple[Path, Dict[str, Any]]:
     """Scan *input_dir* for audio + metadata and write ``dataset.json``.
 
@@ -122,6 +123,8 @@ def build_dataset(
             or ``"replace"``.
         name: Dataset name in the metadata block.
         output: Output JSON path (default: ``<input_dir>/dataset.json``).
+        genre_ratio: Percentage (0-100) of samples that use genre
+            instead of caption during preprocessing.
 
     Returns:
         ``(output_path, stats_dict)`` where stats has keys
@@ -189,6 +192,7 @@ def build_dataset(
             "name": name,
             "custom_tag": tag,
             "tag_position": tag_position,
+            "genre_ratio": genre_ratio,
             "created_at": datetime.now().isoformat(),
             "num_samples": len(samples),
         },
