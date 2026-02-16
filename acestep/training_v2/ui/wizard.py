@@ -14,7 +14,7 @@ import argparse
 from typing import Generator, Optional
 
 from acestep.training_v2.ui import console, is_rich_active
-from acestep.training_v2.ui.prompt_helpers import GoBack, ask, menu
+from acestep.training_v2.ui.prompt_helpers import GoBack, menu
 from acestep.training_v2.ui.flows import wizard_train, wizard_preprocess
 from acestep.training_v2.ui.flows_build_dataset import wizard_build_dataset
 from acestep.training_v2.ui.wizard_menus import experimental_menu, manage_presets_menu, _print_msg
@@ -113,7 +113,6 @@ def _main_menu() -> Optional[argparse.Namespace]:
                 ("train_lokr", "Train a LoKR (LyCORIS)"),
                 ("build_dataset", "Build dataset from folder"),
                 ("preprocess", "Preprocess audio into tensors"),
-                ("convert_comfyui", "Convert LoRA for ComfyUI"),
                 ("presets", "Manage presets"),
                 ("settings", "Settings"),
                 ("experimental", "Experimental (beta)"),
@@ -124,10 +123,6 @@ def _main_menu() -> Optional[argparse.Namespace]:
 
         if action == "exit":
             return None
-
-        if action == "convert_comfyui":
-            _run_comfyui_convert()
-            continue  # loop back to main menu
 
         if action == "presets":
             manage_presets_menu()
@@ -183,33 +178,6 @@ def _run_settings_editor() -> None:
     data = run_settings_editor()
     if data is not None:
         save_settings(data)
-
-
-def _run_comfyui_convert() -> None:
-    """Prompt for a PEFT adapter directory and convert to ComfyUI format."""
-    from acestep.training_v2.export_utils import convert_peft_to_diffusers
-
-    try:
-        adapter_dir = ask(
-            "Path to PEFT LoRA adapter directory",
-            required=True,
-        )
-    except GoBack:
-        return
-
-    try:
-        out_path = convert_peft_to_diffusers(adapter_dir.strip())
-        _print_msg(f"\n  [green]Done![/] ComfyUI LoRA saved to: {out_path}\n"
-                   if is_rich_active() else
-                   f"\n  Done! ComfyUI LoRA saved to: {out_path}\n")
-    except (FileNotFoundError, RuntimeError) as exc:
-        _print_msg(f"\n  [red]Error:[/] {exc}\n"
-                   if is_rich_active() else
-                   f"\n  Error: {exc}\n")
-    except Exception as exc:
-        _print_msg(f"\n  [red]Conversion failed:[/] {exc}\n"
-                   if is_rich_active() else
-                   f"\n  Conversion failed: {exc}\n")
 
 
 def _print_abort() -> None:

@@ -10,7 +10,6 @@ Subcommands:
     selective        Corrected training with dataset-specific module selection
     estimate         Gradient sensitivity analysis (no training)
     compare-configs  Compare module config JSON files
-    convert          Convert a PEFT LoRA adapter to ComfyUI format
 
 Examples:
     python train.py fixed --checkpoint-dir ./checkpoints --model-variant turbo \\
@@ -58,7 +57,7 @@ def _has_subcommand() -> bool:
     args = sys.argv[1:]
     if "--help" in args or "-h" in args:
         return True  # let argparse handle help
-    known = {"vanilla", "fixed", "selective", "estimate", "compare-configs", "convert", "build-dataset"}
+    known = {"vanilla", "fixed", "selective", "estimate", "compare-configs", "build-dataset"}
     return bool(known & set(args))
 
 
@@ -89,8 +88,6 @@ def _dispatch(args) -> int:
     # Subcommands with their own validation (no path check needed)
     if sub == "compare-configs":
         return _run_compare_configs(args)
-    if sub == "convert":
-        return _run_convert(args)
     if sub == "build-dataset":
         return _run_build_dataset(args)
 
@@ -306,38 +303,6 @@ def _run_compare_configs(args) -> int:
         return 1
     print("[INFO] compare-configs is not yet implemented.", file=sys.stderr)
     return 1
-
-
-def _run_convert(args) -> int:
-    """Convert a PEFT LoRA adapter to diffusers format for ComfyUI."""
-    from acestep.training_v2.export_utils import convert_peft_to_diffusers
-
-    adapter_dir = args.adapter_dir
-    output = getattr(args, "output", None)
-
-    print("\n" + "=" * 60)
-    print("  Convert PEFT LoRA -> ComfyUI (diffusers format)")
-    print("=" * 60)
-    print(f"  Adapter dir: {adapter_dir}")
-    if output:
-        print(f"  Output:      {output}")
-    else:
-        print(f"  Output:      {adapter_dir}/pytorch_lora_weights.safetensors")
-    print("=" * 60)
-
-    try:
-        out_path = convert_peft_to_diffusers(adapter_dir, output_path=output)
-    except (FileNotFoundError, RuntimeError) as exc:
-        print(f"[FAIL] {exc}", file=sys.stderr)
-        return 1
-    except Exception as exc:
-        print(f"[FAIL] Conversion failed: {exc}", file=sys.stderr)
-        logger.exception("Conversion error")
-        return 1
-
-    print(f"\n[OK] ComfyUI-compatible LoRA saved to: {out_path}")
-    print("[INFO] Load this file in ComfyUI's LoRA loader node.")
-    return 0
 
 
 def _run_build_dataset(args) -> int:

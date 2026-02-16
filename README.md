@@ -24,7 +24,6 @@ If you're training LoRAs for ACE-Step, Side-Step is built to get you from audio 
 - **Correct training out of the box.** The upstream trainer uses a discrete 8-step schedule hardcoded for turbo. That's wrong for base and sft models (they were trained with continuous logit-normal sampling + CFG dropout). Side-Step matches each model's actual training distribution automatically.
 - **Low VRAM, real hardware.** Trains on 8 GB GPUs. Gradient checkpointing, 8-bit optimizers, encoder offloading, and VRAM-tier presets are built in. No A100 required.
 - **Interactive wizard or CLI.** Step-by-step wizard with go-back, presets, and flow chaining. Or one-liner CLI for scripted pipelines and cloud runs.
-- **ComfyUI-ready exports.** One-click conversion from PEFT LoRA to diffusers format. Your adapter loads in ComfyUI without manual key remapping.
 - **Two-pass preprocessing.** Converts raw audio to training tensors in two low-VRAM passes (~3 GB then ~6 GB). Auto-detects duration, optional loudness normalization. Preprocess once, train with any adapter type.
 - **Build datasets from folders.** Drop your audio files + matching `.txt` metadata in a folder -- Side-Step generates the `dataset.json` for you. No spreadsheets, no JSON editing.
 - **Latent chunking for data augmentation.** Optionally slice long songs into random windows (default 60s) at the latent level. Each epoch sees different parts of each song, improving generalization and reducing VRAM.
@@ -35,18 +34,16 @@ If you're training LoRAs for ACE-Step, Side-Step is built to get you from audio 
 1.  **Variant-aware timestep sampling:** Turbo uses discrete 8-step sampling (matching its inference schedule). Base and sft use continuous logit-normal sampling (matching how they were actually trained). The upstream trainer hardcodes the turbo schedule for everything.
 2.  **CFG Dropout for base/sft:** Side-Step implements **15% null-condition dropout** for base and sft models, teaching the model to handle both prompted and unprompted generation. Turbo doesn't need this and Side-Step skips it automatically.
 3.  **Min-SNR loss weighting (optional):** Rebalances the loss so fine detail (timbre, transients) gets as much training signal as gross structure. Particularly useful for base/sft where the continuous timestep range creates an imbalance.
-4.  **ComfyUI LoRA export:** PEFT saves adapter keys with a prefix that ComfyUI doesn't recognize. Side-Step includes a converter that strips the prefix so your LoRAs load correctly.
 
 ---
 
 ## Beta Status & Support
-**Current Version:** 0.8.2-beta
+**Current Version:** 0.8.3-beta
 
 | Feature | Status | Note |
 | :--- | :--- | :--- |
 | **Training (LoRA)** | Working | Recommended. Auto-detects turbo vs base/sft. |
 | **Training (LoKR)** | **Experimental** | Uses LyCORIS. May have rough edges. |
-| **ComfyUI LoRA Export** | Working | Converts PEFT adapters to diffusers format. |
 | **Interactive Wizard** | Working | `uv run train.py` with no args. Session loop, go-back, presets, first-run setup. |
 | **CLI Preprocessing** | Working | Two-pass pipeline, low VRAM. Auto-detects duration, optional normalization. |
 | **Build Dataset from Folder** | Working | Scan audio + `.txt` metadata to generate `dataset.json`. Wizard or CLI. |
@@ -61,6 +58,11 @@ If you're training LoRAs for ACE-Step, Side-Step is built to get you from audio 
 > git checkout <hash>
 > ```
 > If you hit issues, please open an issue -- it helps us stabilize faster.
+
+### What's new in 0.8.3-beta
+
+**Removed broken feature:**
+- **ComfyUI LoRA export removed** -- The PEFT-to-diffusers key conversion tool (added in 0.8.1) was based on incorrect assumptions about how ComfyUI loads ACE-Step LoRAs. ComfyUI nodes use `PeftModel.from_pretrained()` which natively handles PEFT's key format. The converter was stripping prefixes that PEFT's own loader needs, producing adapters that fail to load ("lora key not loaded" errors). **Your PEFT adapters already work in ComfyUI as-is** -- no conversion needed. The `convert` CLI subcommand, wizard menu option, and `export_utils.py` module have been removed.
 
 ### What's new in 0.8.2-beta
 
@@ -95,7 +97,7 @@ If you're training LoRAs for ACE-Step, Side-Step is built to get you from audio 
 - **Simplified setup wizard.** First-run setup no longer asks about vanilla mode or ACE-Step installation paths. Just point at your checkpoints and go.
 
 **New features:**
-- **ComfyUI LoRA export** -- PEFT saves adapter keys with a `base_model.model.` prefix that ComfyUI doesn't recognize. New converter strips the prefix and writes a `pytorch_lora_weights.safetensors` file that ComfyUI loads directly. Access via CLI (`python train.py convert --adapter-dir ./my_lora/final`) or the wizard ("Convert LoRA for ComfyUI" menu option).
+- ~~**ComfyUI LoRA export**~~ -- *Removed in 0.8.3. The conversion was based on incorrect assumptions and produced broken adapters. PEFT adapters load natively in ComfyUI without conversion.*
 - **Min-SNR loss weighting** -- Optional `--loss-weighting min_snr` rebalances training loss so fine detail (timbre, transients, mixing) gets as much signal as gross structure. Most useful for base/sft models where the continuous timestep range creates an imbalance. Default is `none` (flat MSE, same as before).
 - **TensorBoard timestep histograms** -- The sampled timestep distribution is now logged as a histogram. Verify that your training is sampling the right noise levels under Histograms > `train/timestep_distribution`.
 
@@ -342,13 +344,6 @@ uv run train.py estimate \
     --top-k 16
 ```
 
-### Option F: Convert LoRA for ComfyUI
-PEFT saves adapter keys with a prefix that ComfyUI doesn't recognize. Convert to diffusers format:
-```bash
-uv run train.py convert --adapter-dir ./output/my_lora/final
-```
-This writes `pytorch_lora_weights.safetensors` into the adapter directory. Also available from the wizard main menu ("Convert LoRA for ComfyUI").
-
 > **Advanced subcommands:** `selective` (corrected training with dataset-specific module selection) and `compare-configs` (compare module config JSON files) are also available. These are advanced/WIP features -- run `uv run train.py selective --help` or `uv run train.py compare-configs --help` for details.
 
 ---
@@ -404,7 +399,6 @@ Side-Step/                       <-- Standalone project root
 └── acestep/
     └── training_v2/             <-- Side-Step logic (all standalone)
         ├── trainer_fixed.py     <-- The corrected training loop
-        ├── export_utils.py      <-- ComfyUI LoRA converter (PEFT -> diffusers)
         ├── preprocess.py        <-- Two-pass preprocessing pipeline
         ├── audio_duration.py    <-- Audio duration auto-detection
         ├── audio_normalize.py   <-- Peak and LUFS normalization

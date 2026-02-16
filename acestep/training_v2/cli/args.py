@@ -169,25 +169,6 @@ def build_root_parser() -> argparse.ArgumentParser:
         help="Output JSON path (default: <input>/dataset.json)",
     )
 
-    # -- convert (PEFT -> diffusers for ComfyUI) -----------------------------
-    p_convert = subparsers.add_parser(
-        "convert",
-        help="Convert a PEFT LoRA adapter to diffusers format (for ComfyUI)",
-        formatter_class=formatter_class,
-    )
-    p_convert.add_argument(
-        "--adapter-dir",
-        type=str,
-        required=True,
-        help="Path to PEFT adapter directory containing adapter_model.safetensors",
-    )
-    p_convert.add_argument(
-        "--output",
-        type=str,
-        default=None,
-        help="Output file path (default: pytorch_lora_weights.safetensors in adapter dir)",
-    )
-
     return root
 
 
