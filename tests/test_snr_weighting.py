@@ -116,18 +116,19 @@ class TestTrainingStepSNRIntegration(unittest.TestCase):
         }
 
     @patch("acestep.training_v2.fixed_lora_module.sample_timesteps")
-    def test_last_timesteps_populated(self, mock_sample):
-        """_last_timesteps should be populated after a training step."""
+    def test_timestep_buffer_populated(self, mock_sample):
+        """Timestep buffer should accumulate after training steps."""
         mock_sample.return_value = (
             torch.tensor([0.4, 0.6]),
             torch.tensor([0.4, 0.6]),
         )
         module = self._make_module(loss_weighting="none", is_turbo=False)
-        self.assertIsNone(module._last_timesteps)
+        self.assertIsNone(module.drain_timestep_buffer())
 
         module.training_step(self._make_batch())
-        self.assertIsNotNone(module._last_timesteps)
-        self.assertEqual(module._last_timesteps.shape, (2,))
+        buf = module.drain_timestep_buffer()
+        self.assertIsNotNone(buf)
+        self.assertEqual(buf.shape, (2,))
 
     @patch("acestep.training_v2.fixed_lora_module.sample_timesteps")
     def test_min_snr_returns_scalar_loss(self, mock_sample):
@@ -154,15 +155,16 @@ class TestTrainingStepSNRIntegration(unittest.TestCase):
         self.assertTrue(loss.dtype == torch.float32)
 
     @patch("acestep.training_v2.fixed_lora_module.sample_discrete_timesteps")
-    def test_turbo_last_timesteps_populated(self, mock_discrete):
-        """_last_timesteps should also be populated for turbo training steps."""
+    def test_turbo_timestep_buffer_populated(self, mock_discrete):
+        """Timestep buffer should also accumulate for turbo training steps."""
         mock_discrete.return_value = (
             torch.tensor([0.5, 0.3]),
             torch.tensor([0.5, 0.3]),
         )
         module = self._make_module(loss_weighting="none", is_turbo=True)
         module.training_step(self._make_batch())
-        self.assertIsNotNone(module._last_timesteps)
+        buf = module.drain_timestep_buffer()
+        self.assertIsNotNone(buf)
 
 
 class TestTimestepHistogramLogger(unittest.TestCase):

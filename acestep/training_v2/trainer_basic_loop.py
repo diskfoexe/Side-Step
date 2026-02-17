@@ -39,7 +39,11 @@ def _flush_accumulated(
     global_step: int,
     steps_per_epoch: int,
 ) -> Tuple[int, float, List[TrainingUpdate]]:
-    """Clip gradients, step optimizer/scheduler, zero grads, and log.
+    """Clip gradients, step optimizer/scheduler, log, then zero grads.
+
+    Gradient zeroing is deferred until *after* heavy logging so that
+    ``log_per_layer_grad_norms`` can read the gradients (``set_to_none``
+    sets ``.grad`` to ``None``, making them invisible to the logger).
 
     Returns:
         ``(global_step, avg_loss, updates)`` where *updates* is a list
@@ -48,7 +52,6 @@ def _flush_accumulated(
     torch.nn.utils.clip_grad_norm_(trainable_params, cfg.max_grad_norm)
     optimizer.step()
     scheduler.step()
-    optimizer.zero_grad(set_to_none=True)
     global_step += 1
 
     avg_loss = accumulated_loss * cfg.gradient_accumulation_steps / accumulation_step
@@ -67,8 +70,13 @@ def _flush_accumulated(
 
     if global_step % cfg.log_heavy_every == 0:
         tb.log_per_layer_grad_norms(module.model, global_step)
-        if hasattr(module, '_last_timesteps') and module._last_timesteps is not None:
-            tb.log_timestep_histogram(module._last_timesteps, global_step)
+        ts_buf = module.drain_timestep_buffer()
+        if ts_buf is not None:
+            tb.log_timestep_histogram(ts_buf, global_step)
+        tb.flush()
+
+    # Zero gradients only after logging has had a chance to read them.
+    optimizer.zero_grad(set_to_none=True)
 
     return global_step, avg_loss, updates
 

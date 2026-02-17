@@ -15,8 +15,9 @@ Fabric and basic training loops.
 from __future__ import annotations
 
 import logging
+from collections import deque
 from contextlib import nullcontext
-from typing import Any, Dict, Union
+from typing import Any, Dict, Optional, Union
 
 import torch
 import torch.nn as nn
@@ -200,8 +201,10 @@ class FixedLoRAModule(nn.Module):
                 self._loss_weighting,
             )
 
-        # Last sampled timesteps (for TensorBoard histogram logging)
-        self._last_timesteps: torch.Tensor | None = None
+        # Rolling buffer of sampled timesteps (CPU tensors) for TensorBoard
+        # histogram logging.  Capped so memory stays bounded even over
+        # very long runs.
+        self._timestep_buffer: deque[torch.Tensor] = deque(maxlen=100)
 
         # When gradient checkpointing is enabled via wrapper layers that don't
         # expose enable_input_require_grads(), force at least one forward input
@@ -266,6 +269,25 @@ class FixedLoRAModule(nn.Module):
         )
 
     # -----------------------------------------------------------------------
+    # Timestep buffer helpers
+    # -----------------------------------------------------------------------
+
+    def drain_timestep_buffer(self) -> Optional[torch.Tensor]:
+        """Return accumulated timesteps and clear the buffer.
+
+        Concatenates all stored per-batch timestep tensors into a single
+        1-D tensor suitable for ``SummaryWriter.add_histogram()``.
+
+        Returns:
+            Concatenated CPU tensor, or ``None`` if the buffer is empty.
+        """
+        if not self._timestep_buffer:
+            return None
+        result = torch.cat(list(self._timestep_buffer))
+        self._timestep_buffer.clear()
+        return result
+
+    # -----------------------------------------------------------------------
     # Training step
     # -----------------------------------------------------------------------
 
@@ -325,8 +347,8 @@ class FixedLoRAModule(nn.Module):
                     use_meanflow=False,
                 )
 
-            # Store for TensorBoard histogram logging
-            self._last_timesteps = t.detach()
+            # Accumulate for TensorBoard histogram logging
+            self._timestep_buffer.append(t.detach().cpu())
 
             # ---- Flow matching noise ----------------------------------------
             x1 = torch.randn_like(target_latents)  # noise
